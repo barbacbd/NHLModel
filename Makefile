@@ -20,28 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-NHL_DIR=nhl
+NHL_DIR=submodules/nhl
 
 install:
-	git submodule update
-	cd $(NHL_DIR)
+	pip install -e .
 
-	@if [ -f "requirements.txt" ]; then\
-		pip install -r requirements.txt;\
-	fi
-	pip install . --upgrade
-	cd ..
-
-
-	@if [ -f "requirements.txt" ]; then\
-		pip install -r requirements.txt;\
-	fi
-	pip install . --upgrade
+test:
+	pip install -e .[tests]
 
 clean:
 	yes | pip uninstall nhl_stats
-	yes | pip uninstall nhl
 	rm -rf build
-	rm -rf *.egg-info
+	rm -rf src/*.egg-info
 
-.PHONY: install clean
+.PHONY: install test clean 
