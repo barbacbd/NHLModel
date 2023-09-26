@@ -16,7 +16,7 @@ class EventType(Enum):
 def eventTypeToStr(eventType):
     # convert the EventType to a string
     for x in EventType:
-	if x.value == eventType:
+        if x.value == eventType:
             return x.value
 
     return None
