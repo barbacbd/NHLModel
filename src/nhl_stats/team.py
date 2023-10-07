@@ -65,158 +65,158 @@ class TeamStats:
         self.gameRecords = []
         
 
-    def avgTimeToFirstGoalScored(self):
+    def avgTimeToFirstGoalScored(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team scored (includes home and away games). 
         # The value in SECONDS is returned
         return 0.0
 
-    def avgTimeToFirstGoalScoredHome(self):
+    def avgTimeToFirstGoalScoredHome(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team scored during home games. 
         # The value in SECONDS is returned
         return 0.0
     
-    def avgTimeToFirstGoalScoredAway(self):
+    def avgTimeToFirstGoalScoredAway(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team scored during away games. 
         # The value in SECONDS is returned
         return 0.0
     
-    def avgTimeToFirstGoalAgainst(self):
+    def avgTimeToFirstGoalAgainst(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team lets in (includes home and away games). 
         # The value in SECONDS is returned
         return 0.0
 
-    def avgTimeToFirstGoalAgainstHome(self):
+    def avgTimeToFirstGoalAgainstHome(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team lets in for home games. 
         # The value in SECONDS is returned
         return 0.0
     
-    def avgTimeToFirstGoalAgainstAway(self):
+    def avgTimeToFirstGoalAgainstAway(self, maxIncludedRecords=None):
         # calculate the average time from the start of the game
         # until the first goal this team lets in for away games. 
         # The value in SECONDS is returned
         return 0.0
 
-    def avgGoalsScoredPerGame(self):
+    def avgGoalsScoredPerGame(self, maxIncludedRecords=None):
         # Find the total number of goals scored for all games where
         # the team matches the name of this instance. Take the average
         # of that value (includes home and away games).
         return 0.0
 
-    def avgGoalsScoredPerGameHome(self):
+    def avgGoalsScoredPerGameHome(self, maxIncludedRecords=None):
         # Find the total number of goals scored for all games where
         # the team matches the name of this instance. Take the average
         # of that value. This is only for Home games.
         return 0.0
 
-    def avgGoalsScoredPerGameAway(self):
+    def avgGoalsScoredPerGameAway(self, maxIncludedRecords=None):
         # Find the total number of goals scored for all games where
         # the team matches the name of this instance. Take the average
         # of that value. This is only for Away games.
         return 0.0
 
-    def avgGoalsAgainstPerGame(self):
+    def avgGoalsAgainstPerGame(self, maxIncludedRecords=None):
         # Find the total number of goals against for all games where
         # the team matches the name of this instance. Take the average
         # of that value (includes home and away games).
         return 0.0
 
-    def avgGoalsAgainstPerGameHome(self):
+    def avgGoalsAgainstPerGameHome(self, maxIncludedRecords=None):
         # Find the total number of goals against for all games where
         # the team matches the name of this instance. Take the average
         # of that value. This is only for Home games.
         return 0.0
 
-    def avgGoalsAgainstPerGameAway(self):
+    def avgGoalsAgainstPerGameAway(self, maxIncludedRecords=None):
         # Find the total number of goals against for all games where
         # the team matches the name of this instance. Take the average
         # of that value. This is only for Away games.
         return 0.0
 
-    def maxGoalsScored(self):
+    def maxGoalsScored(self, maxIncludedRecords=None):
         # find the max number of goals scored from all records
         return 0
 
-    def maxGoalsScoredHome(self):
+    def maxGoalsScoredHome(self, maxIncludedRecords=None):
         # find the max number of goals scored from all Home records
         return 0
     
-    def maxGoalsScoredAway(self):
+    def maxGoalsScoredAway(self, maxIncludedRecords=None):
         # find the max number of goals scored from all Away records
         return 0
 
-    def maxGoalsAgainst(self):
+    def maxGoalsAgainst(self, maxIncludedRecords=None):
         # find the max number of goals against from all records
         return 0
 
-    def maxGoalsAgainstHome(self):
+    def maxGoalsAgainstHome(self, maxIncludedRecords=None):
         # find the max number of goals against from all Home records
         return 0
 
-    def maxGoalsAgainstAway(self):
+    def maxGoalsAgainstAway(self, maxIncludedRecords=None):
         # find the max number of goals against from all Away records
         return 0
 
-    def avgTimeBetweenGoalsScoredSecs(self):
+    def avgTimeBetweenGoalsScoredSecs(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the team. 
         # This function does not include time before the first goal.
         return 0.0
 
-    def avgTimeBetweenGoalsScoredSecsHome(self):
+    def avgTimeBetweenGoalsScoredSecsHome(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the team
         # during home games. This function does not include time before the first goal.
         return 0.0
     
-    def avgTimeBetweenGoalsScoredSecsAway(self):
+    def avgTimeBetweenGoalsScoredSecsAway(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the team
         # during away games. This function does not include time before the first goal.
         return 0.0
     
-    def avgTimeBetweenGoalsAgainstSecs(self):
+    def avgTimeBetweenGoalsAgainstSecs(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the opponent.
         # This function does not include time before the first goal.
         return 0.0
 
-    def avgTimeBetweenGoalsAgainstSecsHome(self):
+    def avgTimeBetweenGoalsAgainstSecsHome(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the opponent
         # during home games. This function does not include time before the first goal.
         return 0.0
 
-    def avgTimeBetweenGoalsAgainstSecsAway(self):
+    def avgTimeBetweenGoalsAgainstSecsAway(self, maxIncludedRecords=None):
         # Find the average number of seconds between goals scored by the opponent
         # during away games. This function does not include time before the first goal.
         return 0.0
 
-    def avgShotsTakenBeforeGoalScored(self):
+    def avgShotsTakenBeforeGoalScored(self, maxIncludedRecords=None):
         # Find the average number of shots taken between goals. This includes
         # the first goal of the game.
         return 0.0
 
-    def avgShotsTakenBeforeGoalScoredHome(self):
+    def avgShotsTakenBeforeGoalScoredHome(self, maxIncludedRecords=None):
         # Find the average number of shots taken between goals for home games. This includes
         # the first goal of the game.
         return 0.0
     
-    def avgShotsTakenBeforeGoalScoredAway(self):
+    def avgShotsTakenBeforeGoalScoredAway(self, maxIncludedRecords=None):
         # Find the average number of shots taken between goals for away games. This includes
         # the first goal of the game.
         return 0.0
 
-    def avgShotsReceivedBeforeGoalScored(self):
+    def avgShotsReceivedBeforeGoalScored(self, maxIncludedRecords=None):
         # Find the average number of shots against us between goals. This includes 
         # the first goal of the game.
         return 0.0
 
-    def avgShotsReceivedBeforeGoalScoredHome(self):
+    def avgShotsReceivedBeforeGoalScoredHome(self, maxIncludedRecords=None):
         # Find the average number of shots against us between goals for home games. This includes 
         # the first goal of the game.
         return 0.0
 
-    def avgShotsReceivedBeforeGoalScoredAway(self):
+    def avgShotsReceivedBeforeGoalScoredAway(self, maxIncludedRecords=None):
         # Find the average number of shots against us between goals for away games. This includes 
         # the first goal of the game.
         return 0.0

@@ -28,25 +28,14 @@ ShotEvents = [x.value for x in EventType]
 
 
 
-class Event:
-
-    def __init__(self, eventId=None):
-        self.eventId = eventId
-
-        # True -> Goal
-        self.success = False
-
-        self.eventType = None
-
-        self.coordinates = {}
-
-        self.periodTime = 0.0
-        self.periodTimeRemaining = 0.0
-        self.period = 0
-        self.periodType = None
-
-        self.priorShots = []
+class Game:
+    def __init__(self, homeTeamId=None, awayTeamId=None):
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
+        self.homeTeamEvents = []
+        self.awayTeamEvents = []
 
     @property
-    def numPriorEvents(self):
-        return len(priorShots)
+    def valid(self):
+        # technically it is possible to have no events saved, but the team Ids must be present
+        return None not in (self.homeTeamId, self.awayTeamId)

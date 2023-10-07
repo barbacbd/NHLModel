@@ -17,6 +17,30 @@ from collections import defaultdict
 from nhl_core import NHLData
 
 
+# NOTE: this is temporary!!!!
+# NOTE: For testing purposes only
+class Game:
+    def __init__(self, homeTeamId=None, awayTeamId=None):
+        self.homeTeamId = homeTeamId
+        self.awayTeamId = awayTeamId
+        self.homeTeamEvents = []
+        self.awayTeamEvents = []
+
+    @property
+    def valid(self):
+        # technically it is possible to have no events saved, but the team Ids must be present
+        return None not in (self.homeTeamId, self.awayTeamId)
+    
+    @property
+    def json(self):
+        return {
+            "homeTeamId": self.homeTeamId,
+            "awayTeamId": self.awayTeamId,
+            "homeTeamEvents": len(self.homeTeamEvents),
+            "awayTeamEvents": len(self.awayTeamEvents)
+        }
+
+
 # Assume that the directory is in this same directory as this script
 directory = 'nhl_data/2022'
     
@@ -40,6 +64,8 @@ eventTypes = [x.value for x in EventType]
 # year -> team_id -> event data
 events = defaultdict(lambda: defaultdict(list))
 
+yearlyEvents = defaultdict(list)
+
 # Go through the list of files. Make sure that we have all players (these may
 # require some corrections, see Corrections.py for more information). Retrieve
 # all of the events from each game too; these will be added to the database. 
@@ -60,41 +86,41 @@ for root, dirs, files in os.walk(directory):
             
             gameInfo = jsonData["gameData"]
 
-
             gameId = gameInfo["game"]["pk"]
             season = gameInfo["game"]["season"]
             homeTeamId = gameInfo["teams"]["home"]["id"]
             awayTeamId = gameInfo["teams"]["away"]["id"]
+
+            game = Game(homeTeamId=homeTeamId, awayTeamId=awayTeamId)
             
-            # this must be local or trades could mess with this simple logic 
-            playersByTeam = defaultdict(list)
-            for k, v in gameInfo["players"].items():
-                playersByTeam[v["currentTeam"]["id"]].append(v["id"])
-            
-            # All events are unique, so these will all be added to the database
             for event in jsonData["liveData"]["plays"]["allPlays"]:
                 if event["result"]["event"] in ("Shot", "Goal",):
+
                     e = NHLData(event)
 
-                    for player in event["players"]:
-                        playerId = int(player["player"]["id"])
+                    # The shooting team is the reported team in the event.
+                    if event["team"]["id"] == homeTeamId:
+                        game.homeTeamEvents.append(e)
+                    elif event["team"]["id"] == awayTeamId:
+                        game.awayTeamEvents.append(e)
+                    else:
+                        print(colored(f'failed to find away or home team matching {event["team"]["id"]}', 'yellow'))
 
-                        if player["playerType"] == "Shooter":
-                            if playerId in playersByTeam[homeTeamId]:
-                                events[season][homeTeamId].append(e)
-                            elif playerId in playersByTeam[awayTeamId]:
-                                events[season][awayTeamId].append(e)
-
-        break
-    break
+            # add the game to the list for the year
+            yearlyEvents[season].append(game)
 
 
-for k, v in events.items():
-    print(f"{k}\n\n")
+# for k, v in yearlyEvents.items():
+#     for game in v:
+#         print(dumps(game.json, indent=2))
 
-    for innerk, innerv in v.items():
-        print(f"\t{innerk}\n\n")
+#         for he in game.homeTeamEvents:
+#             print(dumps(he.json, indent=2))
+#             break
 
-        for event in innerv:
-            print(dumps(event.json,indent=2))
-
+#         for ae in game.awayTeamEvents:
+#             print(dumps(ae.json, indent=2))
+#             break
+    
+#         break
+#     break
