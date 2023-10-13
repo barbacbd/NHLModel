@@ -26,8 +26,6 @@ def eventTypeToStr(eventType):
 ShotEvents = [x.value for x in EventType]
 
 
-
-
 class Game:
     def __init__(self, homeTeamId=None, awayTeamId=None):
         self.homeTeamId = homeTeamId
@@ -39,3 +37,12 @@ class Game:
     def valid(self):
         # technically it is possible to have no events saved, but the team Ids must be present
         return None not in (self.homeTeamId, self.awayTeamId)
+    
+    @property
+    def json(self):
+        return {
+            "homeTeamId": self.homeTeamId,
+            "awayTeamId": self.awayTeamId,
+            "homeTeamEvents": len(self.homeTeamEvents),
+            "awayTeamEvents": len(self.awayTeamEvents)
+        }

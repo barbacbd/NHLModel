@@ -3,11 +3,11 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nhl_stats"
+name = "nhl_time_to_goal"
 authors = [
 	{name = "Brent Barbachem", email = "barbacbd@gmail.com"},
 ]
-description = "NHL Statistical package"
+description = "NHL package/executable to predict time to next goals"
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.7"

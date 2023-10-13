@@ -29,7 +29,7 @@ test:
 	pip install -e .[tests]
 
 clean:
-	yes | pip uninstall nhl_stats
+	yes | pip uninstall nhl_time_to_goal
 	rm -rf build
 	rm -rf src/*.egg-info
 
