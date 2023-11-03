@@ -199,7 +199,7 @@ class TeamStats:
         return self._averageTimeToGoal(maxIncludedRecords, False, True, True)
 
 
-    def _numGoalsScored(self, maxIncludedRecords, home=True, away=False, against=False):
+    def _goalsScored(self, maxIncludedRecords, home=True, away=False, against=False):
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -226,6 +226,35 @@ class TeamStats:
         # make sure that the number of events matches the expected
         assert len(goals) == numEvents
 
+        return goals
+
+
+    def goalsScoredHomeGames(self, maxIncludedRecords=None):
+        # Find the number of goals for each home game. This will find a list
+        # of values (one for each home game). 
+        return self._goalsScored(maxIncludedRecords, True, False, False)
+
+
+    def goalsScoredAwayGames(self, maxIncludedRecords=None):
+        # Find the number of goals for each away game. This will find a list
+        # of values (one for each away game). 
+        return self._goalsScored(maxIncludedRecords, False, True, False)
+
+
+    def goalsScoredAgainstHomeGames(self, maxIncludedRecords=None):
+        # Find the number of goals scored against for each home game. This will find a list
+        # of values (one for each home game). 
+        return self._goalsScored(maxIncludedRecords, True, False, True)
+
+
+    def goalsScoredAgainstAwayGames(self, maxIncludedRecords=None):
+        # Find the number of goals scored against for each away game. This will find a list
+        # of values (one for each away game). 
+        return self._goalsScored(maxIncludedRecords, False, True, True)
+
+
+    def _numGoalsScored(self, maxIncludedRecords, home=True, away=False, against=False):
+        goals = self._goalsScored(maxIncludedRecords, home, away, against)
         return round(mean(goals), 2)
 
 
@@ -510,5 +539,9 @@ class TeamStats:
             "avgShotsTakenBeforeGoalScoredAway": self.avgShotsTakenBeforeGoalScoredAway(maxIncludedRecords),
             "avgShotsReceivedBeforeGoalScored": self.avgShotsReceivedBeforeGoalScored(maxIncludedRecords),
             "avgShotsReceivedBeforeGoalScoredHome": self.avgShotsReceivedBeforeGoalScoredHome(maxIncludedRecords),
-            "avgShotsReceivedBeforeGoalScoredAway": self.avgShotsReceivedBeforeGoalScoredAway(maxIncludedRecords)
+            "avgShotsReceivedBeforeGoalScoredAway": self.avgShotsReceivedBeforeGoalScoredAway(maxIncludedRecords),
+            "goalsScoredHomeGames": self.goalsScoredHomeGames(maxIncludedRecords),
+            "goalsScoredAwayGames": self.goalsScoredAwayGames(maxIncludedRecords),
+            "goalsScoredAgainstHomeGames": self.goalsScoredAgainstHomeGames(maxIncludedRecords),
+            "goalsScoredAgainstAwayGames": self.goalsScoredAgainstAwayGames(maxIncludedRecords),
         }
