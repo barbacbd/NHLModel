@@ -81,3 +81,13 @@ Regulation tie percent: 12.59
 Expected Score (HOME) 2 - 4 (AWAY)
 ```
 The snippet above presents the user with the probability that each team will win or if there will be a tie in regulation. The user can also see the predicted score. 
+
+# Limitations
+
+There is no way to account for immediate changes that could have a major impact on any of the statistical values required for the calculation and estimation of the poisson distribution. 
+
+- New Coach
+- New Players
+  - new injured players
+  - player(s) returning from injury
+  - trades
