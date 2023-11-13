@@ -4,7 +4,6 @@ from json import loads
 from os.path import dirname, abspath
 from nhl_core.endpoints import NHL_FIRST_SEASON
 from scipy.stats import poisson
-import matplotlib.pyplot as plt
 from pandas import DataFrame
 from statistics import mean
 from termcolor import colored

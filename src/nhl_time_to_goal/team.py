@@ -99,15 +99,19 @@ class TeamStats:
         return maxIncludedRecords
 
 
-    def _isolateGames(self, home, away):
+    def _isolateGames(self, home, away, reverse=True):
         games = {}
         if home:
             games.update(self._homeEvents)
         if away:
             games.update(self._awayEvents)
         
-        # sort based on the entry number (essentially the game played)        
-        return dict(sorted(games.items()))
+        if reverse:
+            # sort based on the entry number (essentially the game played), then reverse
+            # the list to get the most recent games first
+            return dict(reversed(games.items()))
+        else:
+            return dict(sorted(games.items()))
     
 
     def _isolateEvents(self, game_num, game, against):
