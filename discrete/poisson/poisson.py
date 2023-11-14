@@ -94,6 +94,7 @@ def parseArguments():
         teamNames = []
         season = f"{year}{year+1}"
         print(colored(f'selected {season} season.', 'blue'))
+        prevSeason = f"{year-1}{year}"
 
         jsonData = readStatisticsFile()
         if season in jsonData:
@@ -134,6 +135,7 @@ def parseArguments():
         # return to exit the loop
         return {
             "season": season,
+            "previousSeason": prevSeason,
             "homeTeam": homeTeamName,
             "awayTeam": awayTeamName
         }
@@ -207,10 +209,25 @@ def calculate(season, homeTeam, awayTeam):
 
 def main():
     """Main execution point
+
+    Currently this would predict the score for the current season, theoretically if the the 
+    season continued. 
+
+    GOAL: Read the previous season and current season data. Use this information to 
+    predict the scores for the current season or season that the user enters.
+
     """
     args = parseArguments()
     if not args:
         exit(1)
+
+    season = args["season"]
+    prevSeason = args["previousSeason"]
+
+    # Find the 
+
+    homeTeam = args["homeTeam"]
+    awayTeam = args["awayTeam"]
 
     calculations = calculate(args["season"], args["homeTeam"], args["awayTeam"])
 
