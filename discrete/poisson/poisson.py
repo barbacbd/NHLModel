@@ -2,10 +2,10 @@ from collections import defaultdict
 from datetime import datetime
 import inquirer
 from json import loads
-from os.path import dirname, abspath, join as path_join
+from os.path import dirname, abspath, join as path_join, exists
 from scipy.stats import poisson
 from statistics import mean
-from nhl_time_to_goal.event import Game
+from nhl_score_prediction.event import Game
 
 
 def readStatisticsFile(dirList):
@@ -17,19 +17,29 @@ def readStatisticsFile(dirList):
     splitDir = _currDir.split("/")
     splitDir = splitDir[:-2] + dirList
 
-    with open("/" + path_join(*splitDir), "rb") as jsonFile:
+    filename = "/" + path_join(*splitDir)
+    if not exists(filename):
+        return None
+
+    with open(filename, "rb") as jsonFile:
         jsonData = loads(jsonFile.read())
 
     return jsonData
 
 
 def getSchedule(year):
+    """Read the schedule file (json) from a specific file location. The files are located
+    in a subdirectory named for the year or beginning year for the season.
+    """
     jsonData = readStatisticsFile(["support", "schedules", str(year), "schedule.json"])
     return jsonData
 
 
 def parseSchedule(schedule):
-    # Turn the schedule into a set of games for the home and away teams
+    """Parse the schedule into a set of home and away games. Technically the
+    home and away games are the same object, but there is a copy for the home 
+    team and the away team. 
+    """
     homeTeamEvents = defaultdict(list)
     awayTeamEvents = defaultdict(list)
     for game in schedule:
@@ -132,13 +142,23 @@ def parseArguments():
     answers = inquirer.prompt(questions)
     year = int(answers["year"])
 
+    # Get the entire schedule 
+    schedule = getSchedule(year)
+    if schedule is None:
+        print(f"Failed to find a schedule for year {year}")
+        exit(1)
+
     # Get the schedule for the previous year
     # This will be used for the first home and away game for each
     # team during the selected year.
     previousSchedule = getSchedule(year-1)
+    if previousSchedule is None:
+        print(f"Failed to find a schedule for previous year {year-1}")
+        exit(1)
 
-    # Get the entire schedule 
-    schedule = getSchedule(year)
+    if None in (schedule, previousSchedule):
+        print("Failed to find a valid schedule for")
+        exit(1)
 
     return schedule, previousSchedule
 
@@ -205,7 +225,6 @@ def main():
 
     """
     schedule, previousSchedule = parseArguments()
-
     homeTeamEventsPrev, awayTeamEventsPrev = parseSchedule(previousSchedule)
     totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
     totalTeamIdsPrevSeason.update(list(awayTeamEventsPrev.keys()))
@@ -308,7 +327,9 @@ def main():
         parsedHomeTeamEvents[g.homeTeamId].append(g)
         parsedAwayTeamEvents[g.awayTeamId].append(g)
 
-    print(f"Number of Games: {len(schedule)}, correctly predicted: {winsPredictedCorrect}, percent: {round(float(winsPredictedCorrect)/float(len(schedule)) *100.0, 2)}")
+    print(f"Number of Games: {len(schedule)}")
+    print(f"Number of correctly predicted games: {winsPredictedCorrect}")
+    print(f"Percent of correctly predicted games: {round(float(winsPredictedCorrect)/float(len(schedule)) *100.0, 2)}")
     
 
 if __name__ == '__main__':

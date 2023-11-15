@@ -20,8 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-NHL_DIR=submodules/nhl
-
 install:
 	pip install -e .
 
@@ -29,8 +27,10 @@ test:
 	pip install -e .[tests]
 
 clean:
-	yes | pip uninstall nhl_time_to_goal
+	pip install -e .[clean]
+	yes | pip uninstall nhl_score_prediction
 	rm -rf build
 	rm -rf src/*.egg-info
+	pyclean .
 
 .PHONY: install test clean 

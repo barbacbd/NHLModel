@@ -3,11 +3,11 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nhl_time_to_goal"
+name = "nhl_score_prediction"
 authors = [
 	{name = "Brent Barbachem", email = "barbacbd@gmail.com"},
 ]
-description = "NHL package/executable to predict time to next goals"
+description = "NHL package/executable to predict NHL scores."
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
@@ -47,5 +47,7 @@ tests = [
     "pylint",
     "pytest-order"
 ]
-
+clean = [
+    "pyclean",
+]
 #[project.scripts]
