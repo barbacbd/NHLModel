@@ -98,7 +98,7 @@ class Game:
         }
 
     def fromJson(self, jsonData):
-        for key, value in jsonData:
+        for key, value in jsonData.items():
             if key in ("homeTeamEvents", "awayTeamEvents"):
                 # TODO: this is a massive amount of data, so skipping for now above
                 setattr(self, key, [NHLData(x) for x in value])

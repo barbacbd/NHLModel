@@ -1,82 +1,129 @@
+from collections import defaultdict
 from datetime import datetime
 import inquirer
 from json import loads
-from os.path import dirname, abspath
-from nhl_core.endpoints import NHL_FIRST_SEASON
+from os.path import dirname, abspath, join as path_join
 from scipy.stats import poisson
-from pandas import DataFrame
 from statistics import mean
-from termcolor import colored
+from nhl_time_to_goal.event import Game
 
 
-MIN_GAMES_FOR_VALID_RECORD = 5
-
-
-def _alertNotEnoughGames(teamName, season):
-    print(colored(f'{teamName} does not have a valid record for {season}.', 'blue'))
-    print(colored(f'Please ensure more than {MIN_GAMES_FOR_VALID_RECORD} home and away games exist. ', 'blue'))        
-
-
-def readStatisticsFile():
+def readStatisticsFile(dirList):
     """Read in the json file data to grab the names of the teams. The 
     file is called `NhlYearlyStatistics.json` and lives in the support
     directory of the current project.
     """
     _currDir = dirname(abspath(__file__))
     splitDir = _currDir.split("/")
-    splitDir = splitDir[:-2] + ["support", "NhlYearlyStatistics.json"]
+    splitDir = splitDir[:-2] + dirList
 
-    with open("/".join(splitDir), "rb") as jsonFile:
+    with open("/" + path_join(*splitDir), "rb") as jsonFile:
         jsonData = loads(jsonFile.read())
 
     return jsonData
 
 
-def getJsonRecord(season, teamName=None):
-    """Get the statistical records from the json data for a particular 
-    season and team.
+def getSchedule(year):
+    jsonData = readStatisticsFile(["support", "schedules", str(year), "schedule.json"])
+    return jsonData
 
-    :param season: {year}{year+1} string representation of the nhl season
-    :param teamName: Name of the to find the record for.
+
+def parseSchedule(schedule):
+    # Turn the schedule into a set of games for the home and away teams
+    homeTeamEvents = defaultdict(list)
+    awayTeamEvents = defaultdict(list)
+    for game in schedule:
+        g = Game("randomData")
+        g.fromJson(game)
+
+        homeTeamEvents[g.homeTeamId].append(g)
+        awayTeamEvents[g.awayTeamId].append(g)
+
+    return homeTeamEvents, awayTeamEvents
+
+
+def calculateAvgGoals(events):
+    """Calculate the number of goals home and away. The 
+    returned values are the averages. 
     """
-    teamData = []
+    goalsScoredHome = []
+    goalsScoredAway = []
+    for _, v in events.items():
+        goalsScoredHome.extend([x.homeTeamGoalsActual for x in v])
+        goalsScoredAway.extend([x.awayTeamGoalsActual for x in v])
 
-    jsonData = readStatisticsFile()
-    if season in jsonData:
-        for k, v in jsonData[season].items():
-            if teamName is None:
-                teamData.append(v)
-            elif teamName == v["name"]:
-                return v
-    return teamData
+    avgGoalsScoredHomeTotal = mean(goalsScoredHome)
+    avgGoalsScoredAwayTotal = mean(goalsScoredAway)
+
+    return avgGoalsScoredHomeTotal, avgGoalsScoredAwayTotal
 
 
-def getTotalGoals(season):
-    # The number of goals scored home or away will always be the same
-    # since there is always a home and away team. 
-    records = getJsonRecord(season)
-    goalsScored = []
-    for teamData in records:
-        goalsScored.extend(teamData["goalsScoredHomeGames"])
-    return goalsScored
+def calculateScores(teamIds, homeTeamEvents, awayTeamEvents):
+    """The following calculations are performed for each team in the
+    list of team IDs:
+    - Home offensive score
+    - Home defensive score
+    - Away offensive score
+    - Away offensive score
+
+    :return: Dictionary where the keys are each of the team Ids in the 
+    list passed in. Each value is a dictionary with the following keys:
+        - homeAttackStrength
+        - homeDefenseStrength
+        - awayAttackStrength
+        - awayDefenseStrength
+    When any of the values is None, the value could not be calculated.
+    """
+    avgGoalsScoredHomeTotal, avgGoalsScoredAwayTotal = calculateAvgGoals(homeTeamEvents)
+
+    scores = {}
+
+    for teamId in teamIds:
+        teamScores = {
+            "homeAttackStrength": None,
+            "homeDefenseStrength": None,
+            "awayAttackStrength": None,
+            "awayDefenseStrength": None
+        }
+
+        # Home Attack Strength
+        avgHomeGoals = None if teamId not in homeTeamEvents else \
+            mean([x.homeTeamGoalsActual for x in homeTeamEvents[teamId]])
+        if avgHomeGoals is not None:
+            homeAttackStrength = avgHomeGoals / avgGoalsScoredHomeTotal
+            teamScores["homeAttackStrength"] = homeAttackStrength
+
+        # Home Defense Strength 
+        avgHomeGoalsAgainst = None if teamId not in homeTeamEvents else \
+            mean([x.awayTeamGoalsActual for x in homeTeamEvents[teamId]])
+        if avgHomeGoalsAgainst is not None:
+            homeDefenseStrength = avgHomeGoalsAgainst / avgGoalsScoredAwayTotal
+            teamScores["homeDefenseStrength"] = homeDefenseStrength
+
+        # Away Attack Strength
+        avgAwayGoals = None if teamId not in awayTeamEvents else \
+            mean([x.awayTeamGoalsActual for x in awayTeamEvents[teamId]])
+        if avgAwayGoals is not None:
+            awayAttackStrength = avgAwayGoals / avgGoalsScoredAwayTotal
+            teamScores["awayAttackStrength"] = awayAttackStrength
+        
+        # Away Defense Strength
+        avgAwayGoalsAgainst = None if teamId not in awayTeamEvents else \
+            mean([x.homeTeamGoalsActual for x in awayTeamEvents[teamId]])
+        if avgAwayGoalsAgainst is not None:
+            awayDefenseStrength = avgAwayGoalsAgainst / avgGoalsScoredHomeTotal
+            teamScores["awayDefenseStrength"] = awayDefenseStrength
+
+        # add the team specific data to the dictionary of values
+        scores[teamId] = teamScores
+
+    return scores
 
 
 def parseArguments():
     """Parse the arguements for the program by reading in the static file that
     contains the basic statistics for all teams and all seasons.
     """
-    def _askAndVerifyTeam(questions, season, teamType):
-        answers = inquirer.prompt(questions)
-        teamName = answers[teamType]
-        teamRecord = getJsonRecord(season, teamName)
-        if not teamRecord or \
-            teamRecord["homeGames"] < MIN_GAMES_FOR_VALID_RECORD or \
-            teamRecord["awayGames"] < MIN_GAMES_FOR_VALID_RECORD:
-            # ensure that there is a valid record and that there are enough games
-            _alertNotEnoughGames(teamName, season)
-            return None
-        return teamName
-
     # Ask for the year/season for analysis
     currentYear = datetime.now().year
     questions = [
@@ -85,126 +132,66 @@ def parseArguments():
     answers = inquirer.prompt(questions)
     year = int(answers["year"])
 
-    while True:
-        # get the year then implement argparse 
-        if NHL_FIRST_SEASON > year > currentYear:
-            # TODO: Add debugging logger here
-            year = currentYear - 1
+    # Get the schedule for the previous year
+    # This will be used for the first home and away game for each
+    # team during the selected year.
+    previousSchedule = getSchedule(year-1)
 
-        teamNames = []
-        season = f"{year}{year+1}"
-        print(colored(f'selected {season} season.', 'blue'))
-        prevSeason = f"{year-1}{year}"
+    # Get the entire schedule 
+    schedule = getSchedule(year)
 
-        jsonData = readStatisticsFile()
-        if season in jsonData:
-            for k, v in jsonData[season].items():
-                teamNames.append(v["name"])
-
-        if not teamNames:
-            # Failed to find the any teams ... try with the year before
-            print(colored(f'failed to find teams for {season} season, retrying with previous season.', 'blue'))
-            year -= 1
-            continue 
-
-        # sort alphabetically for easier search
-        teamNames.sort()
-
-        homeTeamName = _askAndVerifyTeam(
-            [inquirer.List("homeTeam", message="Name of the home team for analysis.", choices=teamNames)],
-            season,
-            "homeTeam"
-        )
-        if not homeTeamName:
-            year -= 1
-            continue
-
-        # remove the home team so that the user does not select the same team.
-        teamNames.remove(homeTeamName)
+    return schedule, previousSchedule
 
 
-        awayTeamName = _askAndVerifyTeam(
-            [inquirer.List("awayTeam", message="Name of the away team for analysis.", choices=teamNames)],
-            season,
-            "awayTeam"
-        )
-        if not awayTeamName:
-            year -= 1
-            continue
-
-        # return to exit the loop
-        return {
-            "season": season,
-            "previousSeason": prevSeason,
-            "homeTeam": homeTeamName,
-            "awayTeam": awayTeamName
-        }
+def findMaxGoalsScored(events):
+    # Get the maximum number of goals scored based on the games provided
+    goalsScored = []
+    for _, value in events.items():
+        for game in value:
+            goalsScored.extend([game.homeTeamGoalsActual, game.awayTeamGoalsActual])
+    return max(goalsScored)
 
 
-def calculate(season, homeTeam, awayTeam):
-    goalsScored = getTotalGoals(season)
-    goalScoredMean, maxGoalsScored = round(mean(goalsScored), 2), max(goalsScored)
-    homeTeamRecord = getJsonRecord(season, homeTeam)
-    awayTeamRecord = getJsonRecord(season, awayTeam)
+def createPredictions(maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted):
+    """Create the win percentages for both teams based on the supplied data.
+    
+    :param maxGoals: Maximum number of goals scored by any team in a game.
+    :param homeTeamGoalsPredicted: The value is calculated from the offense and 
+    defense scores according to the mean number of home goals in home games.
+    :param awayTeamGoalsPredicted: The value is calculated from the offense and 
+    defense scores according to the mean number of away goals in away games.
 
-    # calculate the home team offensive score
-    homeTeamAvgGoalsScoredPerGameHome = homeTeamRecord["avgGoalsScoredPerGameHome"]
-    homeAttackStrength = homeTeamAvgGoalsScoredPerGameHome / goalScoredMean
+    :return homeWinPercent, awayWinPercent, regulationTiePercent, Dataframe for all values
+    """
 
-    # calculate the away team defensive score
-    awayTeamAvgGoalsAgainstPerGameAway = awayTeamRecord["avgGoalsAgainstPerGameAway"]
-    awayDefenseStrength = awayTeamAvgGoalsAgainstPerGameAway / goalScoredMean
+    # increase the max number of goals by 1 to include all goals in the calculations
+    _maxGoals = maxGoals + 1
 
-    # estiamted number of goals for home team to score
-    homeTeamGoalPrediction = homeAttackStrength * awayDefenseStrength * goalScoredMean
-
-    # calculate the away team offensive score
-    awayTeamAvgGoalsScoredPerGameAway = awayTeamRecord["avgGoalsScoredPerGameAway"]
-    awayAttackStrength = awayTeamAvgGoalsScoredPerGameAway / goalScoredMean
-
-    # calculate the home team defensive score
-    homeTeamAvgGoalsAgainstPerGameHome = homeTeamRecord["avgGoalsAgainstPerGameHome"]
-    homeDefenseStrength = homeTeamAvgGoalsAgainstPerGameHome / goalScoredMean
-
-    # estiamted number of goals for away team to score
-    awayTeamGoalPrediction = awayAttackStrength * homeDefenseStrength * goalScoredMean
-
-    # add one to the max goals to include it in the scores 
-    # otherwise the forloop will not use it
-    maxGoalsScored += 1
-
-    pdfData = {homeTeam: [], awayTeam: []}
-    for i in range(maxGoalsScored):
-        pdfData[homeTeam].append(poisson.pmf(i, mu=homeTeamGoalPrediction))
-        pdfData[awayTeam].append(poisson.pmf(i, mu=awayTeamGoalPrediction))
+    pdfData = {"home": [], "away": []}
+    for i in range(_maxGoals):
+        pdfData["home"].append(poisson.pmf(i, mu=homeTeamGoalsPredicted))
+        pdfData["away"].append(poisson.pmf(i, mu=awayTeamGoalsPredicted))
 
     # calculate the chances of a winning atleast 1 point (tie in regulation)
     regulationDrawCalc = 0.0
-    for i in range(maxGoalsScored):
-        regulationDrawCalc += pdfData[homeTeam][i] * pdfData[awayTeam][i]
+    for i in range(_maxGoals):
+        regulationDrawCalc += pdfData["home"][i] * pdfData["away"][i]
 
     # calculate the chances of home team winning 3 points
     homeTeamWinCalc = 0.0
-    for i in range(maxGoalsScored):
-        for j in range(i, maxGoalsScored):
+    for i in range(_maxGoals):
+        for j in range(i, _maxGoals):
             if i != j:
-                homeTeamWinCalc += pdfData[homeTeam][j] * pdfData[awayTeam][i]
+                homeTeamWinCalc += pdfData["home"][j] * pdfData["away"][i]
 
     # calculate the chances of away team winning 3 points
     awayTeamWinCalc = 0.0
-    for i in range(maxGoalsScored):
-        for j in range(i, maxGoalsScored):
+    for i in range(_maxGoals):
+        for j in range(i, _maxGoals):
             if i != j:
-                awayTeamWinCalc += pdfData[awayTeam][j] * pdfData[homeTeam][i]
+                awayTeamWinCalc += pdfData["away"][j] * pdfData["home"][i]
 
-    return {
-        "tie": regulationDrawCalc,
-        "homeWin": homeTeamWinCalc,
-        "awayWin": awayTeamWinCalc,
-        "homeGoals": homeTeamGoalPrediction,
-        "awayGoals": awayTeamGoalPrediction,
-        "pdf": pdfData
-    }
+    return homeTeamWinCalc, awayTeamWinCalc, regulationDrawCalc, pdfData
 
 
 def main():
@@ -217,36 +204,112 @@ def main():
     predict the scores for the current season or season that the user enters.
 
     """
-    args = parseArguments()
-    if not args:
-        exit(1)
+    schedule, previousSchedule = parseArguments()
 
-    season = args["season"]
-    prevSeason = args["previousSeason"]
+    homeTeamEventsPrev, awayTeamEventsPrev = parseSchedule(previousSchedule)
+    totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
+    totalTeamIdsPrevSeason.update(list(awayTeamEventsPrev.keys()))
+    previousSeasonScores  = calculateScores(
+        list(totalTeamIdsPrevSeason), 
+        homeTeamEventsPrev, 
+        awayTeamEventsPrev
+    )
 
-    # Find the 
+    # Predict the values for the current schedule
+    parsedHomeTeamEvents = defaultdict(list)
+    parsedAwayTeamEvents = defaultdict(list)
 
-    homeTeam = args["homeTeam"]
-    awayTeam = args["awayTeam"]
+    winsPredictedCorrect = 0
 
-    calculations = calculate(args["season"], args["homeTeam"], args["awayTeam"])
+    for game in schedule:
 
-    homeWinPercent = calculations["homeWin"]
-    awayWinPercent = calculations["awayWin"]
-    regulationTiePercent = calculations["tie"]
-    homeGoals = calculations["homeGoals"]
-    awayGoals = calculations["awayGoals"]
-    pdfData = calculations["pdf"]
+        g = Game("randomGame")
+        g.fromJson(game)
 
-    df = DataFrame.from_dict(pdfData, orient='index')
-    print(df)
+        homeTeamScores = {}
+        awayTeamScores = {}
 
-    print(f"{args['homeTeam']} (HOME) win percentage: {round(homeWinPercent*100.0, 2)}")
-    print(f"{args['awayTeam']} (AWAY) win percentage: {round(awayWinPercent*100.0, 2)}")
-    print(f"Regulation tie percent: {round(regulationTiePercent*100.0,2)}")
-    print(f"Expected Regulation Score (HOME) {int(round(homeGoals, 0))} - {int(round(awayGoals, 0))} (AWAY)")
+        findTeamScoresCurrSeason = []
+
+        # use the previous season data to predict the home values
+        if g.homeTeamId not in parsedHomeTeamEvents:
+            if g.homeTeamId in previousSeasonScores:
+                homeTeamScores.update(previousSeasonScores[g.homeTeamId])
+            else:
+                # indicates that the team may be new, or they don't have records
+                # from the previous year. Use the entire average for all teams
+                # from the previous year. 
+                # TODO: will this just average to 1?
+                homeTeamScores.update({"homeAttackStrength": 1.0, "homeDefenseStrength": 1.0})
+        else:
+            findTeamScoresCurrSeason.append(g.homeTeamId)
+
+        # use the previous season data to predict away values
+        if g.awayTeamId not in parsedAwayTeamEvents:
+            if g.awayTeamId in previousSeasonScores:
+                awayTeamScores.update(previousSeasonScores[g.awayTeamId])
+            else:
+                # indicates that the team may be new, or they don't have records
+                # from the previous year. Use the entire average for all teams
+                # from the previous year. 
+                # TODO: will this just average to 1?
+                awayTeamScores.update({"awayAttackStrength": 1.0, "awayDefenseStrength": 1.0})
+        else:
+            findTeamScoresCurrSeason.append(g.awayTeamId)
+
+        # Time to parse using the current seasonal data    
+        if findTeamScoresCurrSeason:
+            currentScores = calculateScores(
+                findTeamScoresCurrSeason, 
+                parsedHomeTeamEvents, 
+                parsedAwayTeamEvents
+            )
+        
+            if g.homeTeamId in currentScores:
+                homeTeamScores.update(currentScores[g.homeTeamId])
+            if g.awayTeamId in currentScores:
+                awayTeamScores.update(currentScores[g.awayTeamId])
+    
+            avgHomeGoalsScored, avgAwayGoalsScored = calculateAvgGoals(parsedHomeTeamEvents)
+            maxGoals = findMaxGoalsScored(parsedHomeTeamEvents)
+        else:
+            avgHomeGoalsScored, avgAwayGoalsScored = calculateAvgGoals(homeTeamEventsPrev)
+            maxGoals = findMaxGoalsScored(homeTeamEventsPrev)
+
+        # Predict the number of goals for the home and away teams.
+        # The Poisson Distribution only requires the mean value in this case these predicted values.
+        # There is a tendency to regress to the mean - The Law of Averages. Even when there are
+        # outlier games we should observe more stability in prediction as the season continues.
+        homeTeamGoalsPredicted = homeTeamScores["homeAttackStrength"] * awayTeamScores["awayDefenseStrength"] * avgHomeGoalsScored
+        awayTeamGoalsPredicted = awayTeamScores["awayAttackStrength"] * homeTeamScores["homeDefenseStrength"] * avgAwayGoalsScored
+
+        
+        homeTeamWinCalc, awayTeamWinCalc, regulationDrawCalc, pdfData = createPredictions(
+            maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted
+        )
+
+        g.fromJson(
+            {
+                "homeTeamWinPercent": round(homeTeamWinCalc * 100.0, 2),
+                "homeTeamGoalsPrediction": homeTeamGoalsPredicted,
+                "awayTeamWinPercent": round(awayTeamWinCalc * 100.0, 2),
+                "awayTeamGoalsPrediction": awayTeamGoalsPredicted,
+                "regulationTiePercent": round(regulationDrawCalc * 100.0, 2),
+                "poissonPDF": pdfData
+            }
+        )
+
+        if g.winnerPredicted:
+            winsPredictedCorrect += 1
 
 
+        # update the home and away events that have been parsed - each game
+        # is both a home and an away event
+        parsedHomeTeamEvents[g.homeTeamId].append(g)
+        parsedAwayTeamEvents[g.awayTeamId].append(g)
+
+    print(f"Number of Games: {len(schedule)}, correctly predicted: {winsPredictedCorrect}, percent: {round(float(winsPredictedCorrect)/float(len(schedule)) *100.0, 2)}")
+    
 
 if __name__ == '__main__':
     main()
