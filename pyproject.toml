@@ -35,7 +35,10 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development"
 ]
-dependencies = []
+dependencies = [
+    "inquirer",
+    "scipy",
+]
 dynamic = ["version"]
 
 [tool.setuptools]
@@ -54,7 +57,7 @@ clean = [
     "pyclean",
 ]
 [project.scripts]
-nhl-poisson-predict = "nhl_score_prediction.discrete.poisson.poisson:main"
+nhl-poisson-predict = "nhl_score_prediction.poisson.poisson:main"
 
 [tool.setuptools.package-data]
 'src' = ['nhl_score_prediction/support/schedules/2022/*.json']

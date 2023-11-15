@@ -1,4 +1,0 @@
-inquirer
-pandas
-scipy
-termcolor

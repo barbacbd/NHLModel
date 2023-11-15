@@ -15,7 +15,7 @@ def readStatisticsFile(dirList):
     """
     _currDir = dirname(abspath(__file__))
     splitDir = _currDir.split("/")
-    splitDir = splitDir[:-2] + dirList
+    splitDir = splitDir[:-1] + dirList
 
     filename = "/" + path_join(*splitDir)
     if not exists(filename):
