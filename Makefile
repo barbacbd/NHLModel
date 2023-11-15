@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 install:
-	pip install -e .
+	pip install .
 
 test:
 	pip install -e .[tests]

@@ -1,0 +1,1 @@
+recursive-include src/nhl_score_prediction/support/ *.json

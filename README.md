@@ -1,6 +1,6 @@
-# TimeToGoal
-Predict the time until the next goal for NHL games
+# NHL Score Prediction
 
+Predict the score of NHL games.
 
 # Survival Analysis
 

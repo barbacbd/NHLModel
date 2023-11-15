@@ -38,6 +38,9 @@ classifiers = [
 dependencies = []
 dynamic = ["version"]
 
+[tool.setuptools]
+include-package-data = true
+
 [project.optional-dependencies]
 tests = [
     "pytest",
@@ -50,4 +53,10 @@ tests = [
 clean = [
     "pyclean",
 ]
-#[project.scripts]
+[project.scripts]
+nhl-poisson-predict = "nhl_score_prediction.discrete.poisson.poisson:main"
+
+[tool.setuptools.package-data]
+'src' = ['nhl_score_prediction/support/schedules/2022/*.json']
+
+
