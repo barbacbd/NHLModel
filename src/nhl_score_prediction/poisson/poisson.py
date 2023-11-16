@@ -62,8 +62,8 @@ def calculateAvgGoals(events):
         goalsScoredHome.extend([x.homeTeamGoalsActual for x in v])
         goalsScoredAway.extend([x.awayTeamGoalsActual for x in v])
 
-    avgGoalsScoredHomeTotal = mean(goalsScoredHome)
-    avgGoalsScoredAwayTotal = mean(goalsScoredAway)
+    avgGoalsScoredHomeTotal = mean(goalsScoredHome) if len(goalsScoredHome) > 0 else 0.0
+    avgGoalsScoredAwayTotal = mean(goalsScoredAway) if len(goalsScoredAway) > 0 else 0.0
 
     return avgGoalsScoredHomeTotal, avgGoalsScoredAwayTotal
 
@@ -151,7 +151,7 @@ def findMaxGoalsScored(events):
     for _, value in events.items():
         for game in value:
             goalsScored.extend([game.homeTeamGoalsActual, game.awayTeamGoalsActual])
-    return max(goalsScored)
+    return max(goalsScored) if len(goalsScored) > 0 else 0
 
 
 def createPredictions(maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted):
@@ -206,7 +206,7 @@ def parseSeasonEvents(year):
     schedule = getSchedule(year)
     if schedule is None:
         print(f"Failed to find a schedule for year {year}")
-        exit(1)
+        return None, None
 
     # Get the schedule for the previous year
     # This will be used for the first home and away game for each
@@ -214,11 +214,7 @@ def parseSeasonEvents(year):
     previousSchedule = getSchedule(year-1)
     if previousSchedule is None:
         print(f"Failed to find a schedule for previous year {year-1}")
-        exit(1)
-
-    if None in (schedule, previousSchedule):
-        print("Failed to find a valid schedule for")
-        exit(1)
+        return None, None
 
     homeTeamEventsPrev, awayTeamEventsPrev = parseSchedule(previousSchedule)
     totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
@@ -307,7 +303,11 @@ def parseSeasonEvents(year):
                 "awayTeamWinPercent": round(awayTeamWinCalc * 100.0, 2),
                 "awayTeamGoalsPrediction": awayTeamGoalsPredicted,
                 "regulationTiePercent": round(regulationDrawCalc * 100.0, 2),
-                "poissonPDF": pdfData
+                "poissonPDF": pdfData,
+                "homeAttackStrength": homeTeamScores["homeAttackStrength"],
+                "homeDefenseStrength": homeTeamScores["homeDefenseStrength"],
+                "awayAttackStrength": awayTeamScores["awayAttackStrength"],
+                "awayDefenseStrength": awayTeamScores["awayDefenseStrength"],
             }
         )
 

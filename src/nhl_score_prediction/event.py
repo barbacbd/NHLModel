@@ -62,6 +62,10 @@ class Game:
              self.awayTeamGoalsActual > self.homeTeamGoalsActual):
             return True
         return False
+    
+    @property
+    def winner(self):
+        return "home" if self.homeTeamGoalsActual > self.awayTeamGoalsActual else "away"
 
     @property
     def totalGoals(self):
@@ -86,8 +90,7 @@ class Game:
             "gameId": self.gameId,
             "homeTeamId": self.homeTeamId,
             "awayTeamId": self.awayTeamId,
-            # "homeTeamEvents": [x.json for x in self.homeTeamEvents],
-            # "awayTeamEvents": [x.json for x in self.awayTeamEvents],
+            # Missing the actual events. This is too much to load/unload to files
             "homeTeamWinPercent": self.homeTeamWinPercent,
             "awayTeamWinPercent": self.awayTeamWinPercent,
             "regulationTiePercent": self.regulationTiePercent,
