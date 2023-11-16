@@ -142,25 +142,7 @@ def parseArguments():
     answers = inquirer.prompt(questions)
     year = int(answers["year"])
 
-    # Get the entire schedule 
-    schedule = getSchedule(year)
-    if schedule is None:
-        print(f"Failed to find a schedule for year {year}")
-        exit(1)
-
-    # Get the schedule for the previous year
-    # This will be used for the first home and away game for each
-    # team during the selected year.
-    previousSchedule = getSchedule(year-1)
-    if previousSchedule is None:
-        print(f"Failed to find a schedule for previous year {year-1}")
-        exit(1)
-
-    if None in (schedule, previousSchedule):
-        print("Failed to find a valid schedule for")
-        exit(1)
-
-    return schedule, previousSchedule
+    return year
 
 
 def findMaxGoalsScored(events):
@@ -214,17 +196,30 @@ def createPredictions(maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted):
     return homeTeamWinCalc, awayTeamWinCalc, regulationDrawCalc, pdfData
 
 
-def main():
-    """Main execution point
+def parseSeasonEvents(year):
+    """Parse the events for a given season. This will include predicting which team
+    will win each game.
 
-    Currently this would predict the score for the current season, theoretically if the the 
-    season continued. 
-
-    GOAL: Read the previous season and current season data. Use this information to 
-    predict the scores for the current season or season that the user enters.
-
+    :return: home team events, away team events
     """
-    schedule, previousSchedule = parseArguments()
+    # Get the entire schedule 
+    schedule = getSchedule(year)
+    if schedule is None:
+        print(f"Failed to find a schedule for year {year}")
+        exit(1)
+
+    # Get the schedule for the previous year
+    # This will be used for the first home and away game for each
+    # team during the selected year.
+    previousSchedule = getSchedule(year-1)
+    if previousSchedule is None:
+        print(f"Failed to find a schedule for previous year {year-1}")
+        exit(1)
+
+    if None in (schedule, previousSchedule):
+        print("Failed to find a valid schedule for")
+        exit(1)
+
     homeTeamEventsPrev, awayTeamEventsPrev = parseSchedule(previousSchedule)
     totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
     totalTeamIdsPrevSeason.update(list(awayTeamEventsPrev.keys()))
@@ -237,8 +232,6 @@ def main():
     # Predict the values for the current schedule
     parsedHomeTeamEvents = defaultdict(list)
     parsedAwayTeamEvents = defaultdict(list)
-
-    winsPredictedCorrect = 0
 
     for game in schedule:
 
@@ -318,18 +311,39 @@ def main():
             }
         )
 
-        if g.winnerPredicted:
-            winsPredictedCorrect += 1
-
-
         # update the home and away events that have been parsed - each game
         # is both a home and an away event
         parsedHomeTeamEvents[g.homeTeamId].append(g)
         parsedAwayTeamEvents[g.awayTeamId].append(g)
 
-    print(f"Number of Games: {len(schedule)}")
+    return parsedHomeTeamEvents, parsedAwayTeamEvents
+
+
+def main():
+    """Main execution point
+
+    Currently this would predict the score for the current season, theoretically if the the 
+    season continued. 
+
+    GOAL: Read the previous season and current season data. Use this information to 
+    predict the scores for the current season or season that the user enters.
+
+    """
+    year = parseArguments()
+
+    homeTeamEvents, awayTeamEvents = parseSeasonEvents(year)
+
+    winsPredictedCorrect = 0
+    totalGames = 0
+    for _, events in homeTeamEvents.items():
+        totalGames += len(events)
+        for event in events:
+            if event.winnerPredicted:
+                winsPredictedCorrect += 1
+            
+    print(f"Number of Games: {totalGames}")
     print(f"Number of correctly predicted games: {winsPredictedCorrect}")
-    print(f"Percent of correctly predicted games: {round(float(winsPredictedCorrect)/float(len(schedule)) *100.0, 2)}")
+    print(f"Percent of correctly predicted games: {round(float(winsPredictedCorrect)/float(totalGames) *100.0, 2)}")
     
 
 if __name__ == '__main__':
