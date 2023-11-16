@@ -1,18 +1,13 @@
 from collections import defaultdict
-from json import dumps, loads
+from json import loads
 import os
 from os import mkdir, remove
 from os.path import exists, join as path_join
 from shutil import rmtree
-from nhl_core import NHLData
-from nhl_score_prediction.poisson.poisson import (
-    readStatisticsFile,
-    getSchedule,
-    parseSchedule,
-    calculateAvgGoals,
-    parseSeasonEvents
-)
+from nhl_score_prediction.poisson.poisson import parseSeasonEvents
 import pandas as pd
+import inquirer
+from datetime import datetime
 
 
 _staticBoxScoreData = {
@@ -73,6 +68,25 @@ directory = '/home/barbacbd/personal/data/nhl_data/'
 # all of the events from each game too; these will be added to the database. 
 i = 1
 
+
+def parseArguments():
+    """Parse the arguements for the program by reading in the static file that
+    contains the basic statistics for all teams and all seasons.
+    """
+    # Ask for the year/season for analysis
+    currentYear = datetime.now().year
+    questions = [
+        inquirer.Text('startYear', message="Enter the year for the analysis to start.", default=2000),
+        inquirer.Text('endYear', message="Enter the year for the analysis to end.", default=currentYear-1),
+    ]
+    answers = inquirer.prompt(questions)
+    startYear = int(answers["startYear"])
+    endYear = int(answers["endYear"])
+
+    return startYear, endYear
+
+
+
 basePath = "neural_net"
 
 if exists(basePath):
@@ -80,77 +94,84 @@ if exists(basePath):
 mkdir(basePath)
 
 
+startYear, endYear = parseArguments()
+startYear, endYear = min([startYear, endYear]), max([startYear, endYear])
+
+# data to be added to a dateframe and output to an excel file.
 totalData = []
-seasonSplitData = defaultdict(list)
 
 seasonParsedEvents = {}
 
+
+validFiles = []
 for root, dirs, files in os.walk(directory):
 
-    # data to be written to a specific seasonal directory
-    seasonalData = []
+    sp = root.split("/")
+    try:
+        if startYear <= int(sp[len(sp)-1]) <= endYear:
+            validFiles.extend([path_join(root, f) for f in files])
+    except:
+        pass
 
-    for file in files:
+for fname in validFiles:
+
+    # find the directory and parse the events for this data 
+    splitPath = fname.split("/")
+    year = int(splitPath[len(splitPath)-2])
+
+    if year not in seasonParsedEvents:
+        parsedHomeTeamEvents, _ = parseSeasonEvents(year)
+        if None in (parsedHomeTeamEvents, ):
+            # TODO: something needs to happen if there is no data ... break?
+            print(f"failed to find data for {year}")
+            seasonParsedEvents[year] = {}
+        else:
+            seasonParsedEvents[year] = parsedHomeTeamEvents
+
+    parsedHomeTeamEvents = {}
+    if year in seasonParsedEvents:
+        parsedHomeTeamEvents = seasonParsedEvents[year]
+    
+
+    jsonData = None
+    with open(fname) as jsonFile:
+        jsonData = loads(jsonFile.read())
+
+    if jsonData:
+
+        localGameData = {}
+
+        gameInfo = jsonData["gameData"]
+        localGameData = {
+            "gameId": gameInfo["game"]["pk"]
+        }
+        boxScore = jsonData["liveData"]["boxscore"]
+        homeTeamData, awayTeamData = parseBoxScore(boxScore)
         
-        fname = path_join(root, file)
+        homeTeamData.update({
+            "gameId": gameInfo["game"]["pk"], 
+            "teamType": 1,
+            "winner": bool(homeTeamData["goals"] > awayTeamData["goals"])
+        })
+        awayTeamData.update({
+            "gameId": gameInfo["game"]["pk"], 
+            "teamType": 0,
+            "winner": not homeTeamData["winner"]
+        })
 
-        # find the directory and parse the events for this data 
-        splitPath = fname.split("/")
-        year = int(splitPath[len(splitPath)-2])
+        if homeTeamData["teamId"] in parsedHomeTeamEvents:
+            for game in parsedHomeTeamEvents[homeTeamData["teamId"]]:
+                if game.gameId == gameInfo["game"]["pk"]:
+                    homeTeamData.update({
+                        "attackStrength": game.homeAttackStrength, 
+                        "defenseStrength": game.homeDefenseStrength,
+                    })
+                    awayTeamData.update({
+                        "attackStrength": game.awayAttackStrength,
+                        "defenseStrength": game.awayDefenseStrength,
+                    })
 
-        if year not in seasonParsedEvents:
-            parsedHomeTeamEvents, _ = parseSeasonEvents(year)
-            if None in (parsedHomeTeamEvents, ):
-                # TODO: something needs to happen if there is no data ... break?
-                print(f"failed to find data for {year}")
-                seasonParsedEvents[year] = {}
-            else:
-                seasonParsedEvents[year] = parsedHomeTeamEvents
-
-        parsedHomeTeamEvents = {}
-        if year in seasonParsedEvents:
-            parsedHomeTeamEvents = seasonParsedEvents[year]
-        
-
-        jsonData = None
-        with open(fname) as jsonFile:
-            jsonData = loads(jsonFile.read())
-
-        if jsonData:
-
-            localGameData = {}
-
-            gameInfo = jsonData["gameData"]
-            localGameData = {
-                "gameId": gameInfo["game"]["pk"]
-            }
-            boxScore = jsonData["liveData"]["boxscore"]
-            homeTeamData, awayTeamData = parseBoxScore(boxScore)
-            
-            homeTeamData.update({
-                "gameId": gameInfo["game"]["pk"], 
-                "teamType": "home",
-                "winner": bool(homeTeamData["goals"] > awayTeamData["goals"])
-            })
-            awayTeamData.update({
-                "gameId": gameInfo["game"]["pk"], 
-                "teamType": "away",
-                "winner": not homeTeamData["winner"]
-            })
-
-            if homeTeamData["teamId"] in parsedHomeTeamEvents:
-                for game in parsedHomeTeamEvents[homeTeamData["teamId"]]:
-                    if game.gameId == gameInfo["game"]["pk"]:
-                        homeTeamData.update({
-                            "attackStrength": game.homeAttackStrength, 
-                            "defenseStrength": game.homeDefenseStrength,
-                        })
-                        awayTeamData.update({
-                            "attackStrength": game.awayAttackStrength,
-                            "defenseStrength": game.awayDefenseStrength,
-                        })
-
-            totalData.extend([homeTeamData, awayTeamData])
+        totalData.extend([homeTeamData, awayTeamData])
     
 
 # generate the dataframe and add to a spreadsheet

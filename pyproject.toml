@@ -38,6 +38,11 @@ classifiers = [
 dependencies = [
     "inquirer",
     "scipy",
+    "keras",
+    "tensorflow",
+    "numpy",
+    "pandas",
+    "openpyxl"
 ]
 dynamic = ["version"]
 
