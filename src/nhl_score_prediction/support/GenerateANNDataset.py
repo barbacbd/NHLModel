@@ -10,7 +10,7 @@ import inquirer
 from datetime import datetime
 
 
-_staticBoxScoreData = {
+_staticBoxScoreTeamData = {
     "teamId": ["team", "id"],
     "teamName": ["team", "name"],
     "triCode": ["team", "triCode"],
@@ -28,7 +28,7 @@ _staticBoxScoreData = {
 }
 
 
-def _parseInternalData(boxScoreValue, dataList):
+def _parseInternalTeamData(boxScoreValue, dataList):
     subVar = boxScoreValue
     for i, listValue in enumerate(dataList):
         if listValue in subVar:
@@ -42,10 +42,74 @@ def _parseInternalData(boxScoreValue, dataList):
 def _parseInternalBoxScoreTeams(teamDict):
     ret = {}
 
-    for key, value in _staticBoxScoreData.items():
-        ret[key] = _parseInternalData(teamDict, value)
+    for key, value in _staticBoxScoreTeamData.items():
+        ret[key] = _parseInternalTeamData(teamDict, value)
     
     return ret
+
+
+def _parseInternalBoxScorePlayers(teamDict):
+
+    numPlayers = 0
+    numGoalies = 0
+
+    # Setting all to None so that we can figure out where stats are missing later
+
+    skaterDict = {
+        "assists": None,
+        "powerPlayAssists": None,
+        "shortHandedAssists": None,
+        "shortHandedGoals": None,
+    }
+    goalieDict = {
+        "saves": None,
+        "powerPlaySaves": None,
+        "shortHandedSaves": None,
+        "evenSaves": None,
+        "shortHandedShotsAgainst": None,
+        "evenShotsAgainst": None,
+        "powerPlayShotsAgainst": None,
+        "savePercentage": None,
+        "powerPlaySavePercentage": None,
+        "shortHandedSavePercentage": None,
+        "evenStrengthSavePercentage": None
+    }
+
+    for _, value in teamDict["players"].items():
+        if "skaterStats" in value["stats"]:
+            for k, v in value["stats"]["skaterStats"].items():
+                if k in skaterDict:
+                    if skaterDict[k] is None:
+                        skaterDict[k] = 0
+                    skaterDict[k] += v
+            
+            numPlayers += 1
+
+        elif "goalieStats" in value["stats"]:
+            for k, v in value["stats"]["goalieStats"].items():
+                if k in goalieDict:
+                    if goalieDict[k] is None:
+                        goalieDict[k] = 0
+                    goalieDict[k] += v
+            
+            numGoalies += 1
+
+    # print(f"skaters = {numPlayers}, goalies = {numGoalies}")
+
+    if numGoalies > 0:
+        # average the percentages
+        for k, v in goalieDict.items():
+            if "percent" in k.lower():
+                if goalieDict[k] is not None:
+                    goalieDict[k] = v / numGoalies
+
+        skaterDict.update(goalieDict)
+        skaterDict["numGoalies"] = numGoalies
+
+    skaterDict.update({"numPlayers": numPlayers})
+
+
+    return skaterDict
 
 
 def parseBoxScore(boxscore):
@@ -56,6 +120,9 @@ def parseBoxScore(boxscore):
     """
     homeTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["home"])
     awayTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["away"])
+
+    homeTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["home"]))
+    awayTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["away"]))
 
     return homeTeamData, awayTeamData
 
@@ -114,6 +181,8 @@ for root, dirs, files in os.walk(directory):
         pass
 
 for fname in validFiles:
+
+    # print(fname)
 
     # find the directory and parse the events for this data 
     splitPath = fname.split("/")
@@ -179,7 +248,9 @@ for fname in validFiles:
 # keys = set([x.keys() for x in totalData])
 df = pd.DataFrame(totalData)
 
-datasetFilename = "ANNDataset.xlsx"
+datasetFilename = f"ANNDataset-{startYear}-{endYear}.xlsx"
+
+print(df.isna().sum())
 
 if exists(datasetFilename):
     remove(datasetFilename)
