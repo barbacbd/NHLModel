@@ -51,12 +51,16 @@ def inquireFiles():
     # this way in the event that no model was selected continue processing
     if useModel == "no" or savedModelFile == "None":
         questions = [
+            inquirer.Text('numEpochs', message="How many epochs during training?", default=1000),
+            inquirer.Text('batchSize', message="Size of batches?", default=30),
             inquirer.List('analysisFile', message="File used to train the data.", choices=files),
         ]
         answers = inquirer.prompt(questions)
         analysisFile = answers["analysisFile"]
 
         outputs["analysisFile"] = path_join(*[locationPath, analysisFile])
+        outputs["numEpochs"] = int(answers["numEpochs"])
+        outputs["batchSize"] = int(answers["batchSize"])
     else:
         outputs["savedModelFile"] = path_join(*[dirname(abspath(__file__)), savedModelFile])
 
@@ -87,8 +91,8 @@ def correctData(df):
             "teamId",
             "teamName", 
             "triCode", 
-            # "attackStrength", 
-            # "defenseStrength", 
+            "attackStrength", 
+            "defenseStrength", 
             "faceOffWinPercentage",
             "shortHandedSavePercentage",
             "gameId",
@@ -130,7 +134,7 @@ if "analysisFile" in outputs:
     dfTensor = tf.convert_to_tensor(trainDF.to_numpy())
     outputTensor = tf.convert_to_tensor(trainOutput.to_numpy())
 
-    model.fit(dfTensor, outputTensor, epochs=250, batch_size=10)
+    model.fit(dfTensor, outputTensor, epochs=outputs["numEpochs"], batch_size=outputs["batchSize"])
     _, accuracy = model.evaluate(dfTensor,  outputTensor)
 
     questions = [

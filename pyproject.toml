@@ -42,7 +42,8 @@ dependencies = [
     "tensorflow",
     "numpy",
     "pandas",
-    "openpyxl"
+    "openpyxl",
+    "mrmr_selection",
 ]
 dynamic = ["version"]
 
