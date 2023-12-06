@@ -57,7 +57,8 @@ tests = [
     "pytest-cov",
     "mock",
     "pylint",
-    "pytest-order"
+    "pytest-order", 
+    "pytest-subtests",
 ]
 clean = [
     "pyclean",
