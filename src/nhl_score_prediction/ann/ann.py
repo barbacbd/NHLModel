@@ -1,26 +1,30 @@
-
-from collections import defaultdict
-from datetime import datetime
+import argparse
 import inquirer
-from json import loads
-from os import listdir
-from os.path import dirname, abspath, join as path_join, exists
-from scipy.stats import poisson
-from statistics import mean
+from logging import basicConfig, getLogger
+from math import sqrt
+from nhl_score_prediction.ann.features import findFeaturesMRMR, findFeaturesF1Scores
 from nhl_score_prediction.event import Game
+from os import listdir
+from os.path import dirname, abspath, join as path_join
 import pandas as pd
-
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
 
-def inquireFiles():
+# Look up dictionary for the type of feature selection algorithms
+featureSelectionData = {
+    "mRMR": findFeaturesMRMR,
+    "F1 Scores": findFeaturesF1Scores,
+}
 
+def inquireFiles():
+    """Ask the user for input. This will determine if a new model is created or 
+    a new/different one is created.
+    """
     outputs = {}
 
     useModel = "no"
-
     questions = [
         inquirer.List('useModel', message="Would you like to use a saved model?", choices=["yes", "no"]),
     ]
@@ -54,11 +58,13 @@ def inquireFiles():
             inquirer.Text('numEpochs', message="How many epochs during training?", default=1000),
             inquirer.Text('batchSize', message="Size of batches?", default=30),
             inquirer.List('analysisFile', message="File used to train the data.", choices=files),
+            inquirer.List('featureSelection', message='Feature selection method.', choices=list(featureSelectionData.keys()))
         ]
         answers = inquirer.prompt(questions)
         analysisFile = answers["analysisFile"]
 
         outputs["analysisFile"] = path_join(*[locationPath, analysisFile])
+        outputs["featureSelection"] = answers["featureSelection"]
         outputs["numEpochs"] = int(answers["numEpochs"])
         outputs["batchSize"] = int(answers["batchSize"])
     else:
@@ -77,66 +83,88 @@ def inquireFiles():
     return outputs
 
 
-def correctData(df):
+def correctData(df, droppable=[]):
+    """Alter the dataframe to remove categorical data. When item(s) are provided
+    via the `droppable` argument, those columns will be removed from the dataframe too.
+    """
     df.drop(columns=df.columns[0], axis=1, inplace=True)
 
     # report the output values. This can be used as a prediction
     # value or a training data outcome
     output = df["winner"]
 
+    labelsToRemove = ["teamId", "teamName", "triCode"] + droppable 
+
     # Drop the output from the Dataframe, leaving the only data left as
     # the dataset to train.
     df.drop(labels=["winner"], axis=1,inplace=True)
-    df.drop(labels=[
-            "teamId",
-            "teamName", 
-            "triCode", 
-            "attackStrength", 
-            "defenseStrength", 
-            "faceOffWinPercentage",
-            "shortHandedSavePercentage",
-            "gameId",
-            "numPlayers"
-        ], 
-        axis=1, 
-        inplace=True
-    )
+    df.drop(labels=labelsToRemove, axis=1, inplace=True)
     df.fillna(0, inplace=True)
 
     return df, output
 
+
+# Set a logging level for the program
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '-log', '--logLevel', 
+    default="warning", 
+    choices=["warning", "critical", "error", "info", "debug"]
+)
+args = parser.parse_args()
+basicConfig(level=args.logLevel.upper())
+logger = getLogger("nhl_neural_net")
 
 # Ask for all user input
 outputs = inquireFiles()
 
 model = None
 if "analysisFile" in outputs:
+    logger.debug("creating new model")
     analysisFile = outputs["analysisFile"]
     trainDF = pd.read_excel(analysisFile)
-    trainDF, trainOutput = correctData(trainDF)
 
-    numObservations, numLabels = trainDF.shape
+    # filter out the output/winner and a few categorical columns
+    trainDF, trainOutput = correctData(trainDF, droppable=[])
+
+    # use the default values for feature selection (when applicable).
+    logger.debug(f"feature selection algorithm: {outputs['featureSelection']}")
+    features = featureSelectionData[outputs["featureSelection"]](trainDF, trainOutput)
+    logger.debug(f"selected features: {features}")
+
+    # only keep the features that we selected
+    trainDF = trainDF[features]
+    _, numLabels = trainDF.shape
 
     model = Sequential()
     # Create a model for a neural network with 3 layers
     # According to a source online, ReLU activation function is best for layers 
     # except the output layer, that layer should use Sigmoid. This is the case for
     # performance reasons.
-    model.add(Dense(32, input_shape=(numLabels,), activation='relu'))
-    model.add(Dense(8, activation='relu'))
-    model.add(Dense(4, activation='relu'))
+    level = max([numLabels, 16])
+    logger.info(f"Creating first layer = {level}")
+    model.add(Dense(level, input_shape=(numLabels,), activation='relu'))    
+    while True:
+        level = int(sqrt(level))
+        if level <= 1:
+            # Looking for a single value 0 or 1 for the output
+            logger.info(f"Creating final layer = 1")
+            model.add(Dense(1, activation='sigmoid'))
+            break
+        logger.info(f"Creating next layer = {level}")
+        model.add(Dense(level, activation='relu'))
 
-    # Looking for a single value 0 or 1 for the output
-    model.add(Dense(1, activation='sigmoid'))
-
+    # create the model
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
+    # tensorflow requires data in a specific format. convert this the expected format
     dfTensor = tf.convert_to_tensor(trainDF.to_numpy())
     outputTensor = tf.convert_to_tensor(trainOutput.to_numpy())
 
     model.fit(dfTensor, outputTensor, epochs=outputs["numEpochs"], batch_size=outputs["batchSize"])
     _, accuracy = model.evaluate(dfTensor,  outputTensor)
 
+    # after creating a new model, ask the user if we should save this.
     questions = [
         inquirer.List('saveModel', message="Would you like to save the model?", choices=["yes", "no"]),
     ]
@@ -149,10 +177,11 @@ if "analysisFile" in outputs:
         model.save(path_join(*[dirname(abspath(__file__)), answers["modelName"]]))
 
 elif "savedModelFile" in outputs:
+    logger.debug("loading saved model")
     model = tf.keras.models.load_model(outputs["savedModelFile"])
 
 if model is None:
-    print("model creation/load failed.")
+    logger.error("model creation/load failed.")
     exit(1)
 
 # the file to compare predicted vs actual data to will always be present

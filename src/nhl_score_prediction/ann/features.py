@@ -34,7 +34,7 @@ def findFeaturesMRMR(dataset, outputs, K=None):
     return selected_features[:_k]
 
 
-def findFeaturesF1Scores(dataset, outputs, precision):
+def findFeaturesF1Scores(dataset, outputs, precision=1.0):
     """Attempt to find the optimal features used for training 
     model(s). This is merely an estimation, but the optimal number of features is
     the least amount of features required to meet a F1 Score of `precision`. 
@@ -86,13 +86,3 @@ def findFeaturesF1Scores(dataset, outputs, precision):
 
     return feats[-numFeaturesToUse].tolist()
 
-
-# trainDF = pd.read_excel("/home/barbacbd/personal/NHLScorePrediction/src/nhl_score_prediction/support/ANNDataset-2022-2022.xlsx")
-# outputs = pd.Series(trainDF["winner"])
-# trainDF.drop(labels=["winner"], axis=1, inplace=True)
-# trainDF.drop(labels=["teamName","triCode",],axis=1,inplace=True)
-# trainDF.fillna(0, inplace=True)
-# _, cols = trainDF.shape
-# print(findFeaturesMRMR(trainDF, outputs, K=7))
-# print(findFeaturesMRMR(trainDF, outputs))
-# print(findFeaturesF1Scores(trainDF, outputs, precision=1.0))

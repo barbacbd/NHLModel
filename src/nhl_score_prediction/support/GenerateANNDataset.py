@@ -116,7 +116,6 @@ def parseBoxScore(boxscore):
     """Parse the box score. The box score will serve as a great starting point
     for the neural net dataset. The boxscore differs from year to year, but the
     main data points will be present.
-    
     """
     homeTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["home"])
     awayTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["away"])
@@ -125,6 +124,61 @@ def parseBoxScore(boxscore):
     awayTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["away"]))
 
     return homeTeamData, awayTeamData
+
+
+def parseRecentData(data, maxRecords=None, gameType=""):
+    """Parse the results of games and return the wins, losses, winPercent, streak
+    from that period indicated by maxRecords. The winPercent will always be greater
+    than or equal to 0.0. The streak will be a positive number when there is a Win Streak
+    in progress, and a negative number when there is a Losing Streak in progress.
+    
+    The information stored in `data` is expected to be in the format 
+    ex: [["W", "H"], ["L", "A"], ...] where `data` is a list of
+    data points that contain the record "W" for win and "L" for loss as the first
+    index followed by "H" for home and "A" for away in the second index.
+
+    NOTE: the data should be stored in order from most recent (index 0) to furthest
+    away in time (index n-1).
+
+    The `maxRecords` indicates the period of data to parse records for. For instance 
+    `maxRecords` of 10 would parse the last 10 games.
+
+    The `gameType` should be empty for home AND away games to be parsed together. The
+    `gameType` should be "H" for home or "A" for away games respectively. Other values 
+    DO NOT raise an error, there will just be no records found and the results will be
+    skewed/invalid.
+    """
+    _maxRecords = len(data) if maxRecords is None else maxRecords
+
+    if gameType == "":
+        x = [_[0] for _ in data[:_maxRecords]]
+    else:
+        x = []
+        for v in data:
+            if v[1] == gameType:
+                x.append(v[0])
+            
+            if len(x) == _maxRecords:
+                break
+
+    wins = x.count("W")
+    losses = x.count("L")
+    winPercent = round((float(wins) / float(len(x))) * 100.0, 2) if len(x) > 0 else 0.0
+
+    streak = 0
+    if len(x) > 0:
+        # streak is positive for W and negative for L
+        streakType = x[0]
+        streak = 1
+        for v in x[1:]:
+            if v != streakType:
+                break
+            streak += 1
+        
+        if streakType == "L":
+            streak = -streak
+
+    return wins, losses, winPercent, streak
 
 
 # Assume that the directory is in this same directory as this script
@@ -168,7 +222,7 @@ startYear, endYear = min([startYear, endYear]), max([startYear, endYear])
 totalData = []
 
 seasonParsedEvents = {}
-
+teamRecentWinPercents = defaultdict(list)
 
 validFiles = []
 for root, dirs, files in os.walk(directory):
@@ -181,8 +235,6 @@ for root, dirs, files in os.walk(directory):
         pass
 
 for fname in validFiles:
-
-    # print(fname)
 
     # find the directory and parse the events for this data 
     splitPath = fname.split("/")
@@ -227,7 +279,49 @@ for fname in validFiles:
             "teamType": 0,
             "winner": not homeTeamData["winner"]
         })
+        
+        # The following calculates the wins/losses win percentage, any win/lose streak, total 
+        # win percentage (season), and the home or away win percentage (based on the type of game
+        # if the team is home or away). These are extra statistics that are not provided by the
+        # box score.
+        # NOTE: these calculations should be run before the current game information is added
+        wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
+        _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
+        _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
+        _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
+        homeTeamData.update({
+            "recentWinPercent": winPercent,
+            "totalWinPercent": totalWinPercent,
+            "gameTypeWinPercentRecent": winPercentHomeRecent,
+            "gameTypeWinPercent": totalWinPercentHome,
+            "streak": streak
+        })
+        wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10)
+        _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']])
+        _, _, winPercentAwayRecent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10, "A")
+        _, _, totalWinPercentAway, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], None, "A")
+        awayTeamData.update({
+            "recentWinPercent": winPercent,
+            "totalWinPercent": totalWinPercent,
+            "gameTypeWinPercentRecent": winPercentAwayRecent,
+            "gameTypeWinPercent": totalWinPercentAway,
+            "streak": streak
+        })
 
+        # Now that the data above has been added to the list of features that _could_ determine
+        # the outcome of a game, add the actual outcome of the game and home vs away value
+        # to be used for the next calculations.
+        if homeTeamData["goals"] > awayTeamData["goals"]:
+            teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["W", "H"])
+            teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["L", "A"])
+        else:
+            teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["L", "H"])
+            teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["W", "A"])
+
+        # When performing the poisson distribution, an attack vs defense score was created.
+        # This _could_ be a useful statistic for predicting future game outcomes. The attack and
+        # defense score can be calculated for any team at any time during the season, so this
+        # means that there is less estimation involved.
         if homeTeamData["teamId"] in parsedHomeTeamEvents:
             for game in parsedHomeTeamEvents[homeTeamData["teamId"]]:
                 if game.gameId == gameInfo["game"]["pk"]:
@@ -255,3 +349,23 @@ print(df.isna().sum())
 if exists(datasetFilename):
     remove(datasetFilename)
 df.to_excel(datasetFilename)
+
+
+# # predict the optimal number of features 
+# from sklearn.metrics import f1_score
+# from sklearn.ensemble import RandomForestClassifier
+
+
+# output = df["winner"]
+
+# # Drop the output from the Dataframe, leaving the only data left as
+# # the dataset to train.
+# df.drop(labels=["winner"], axis=1,inplace=True)
+# df.drop(labels=[
+#         "teamId",
+#         "teamName", 
+#         "triCode", 
+#     ], 
+#     axis=1, 
+#     inplace=True
+# )
