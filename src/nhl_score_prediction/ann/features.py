@@ -4,7 +4,7 @@ from sklearn.metrics import f1_score
 from sklearn.ensemble import RandomForestClassifier
 
 
-def findFeaturesMRMR(dataset, outputs, K=None):
+def findFeaturesMRMR(dataset, outputs, K=None, **kwargs):
     """Select K features using the MRMR feature selection algorithm.
 
     :param dataset: Pandas dataframe. The dataframe should NOT include the output column.
@@ -34,7 +34,7 @@ def findFeaturesMRMR(dataset, outputs, K=None):
     return selected_features[:_k]
 
 
-def findFeaturesF1Scores(dataset, outputs, precision=1.0):
+def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
     """Attempt to find the optimal features used for training 
     model(s). This is merely an estimation, but the optimal number of features is
     the least amount of features required to meet a F1 Score of `precision`. 

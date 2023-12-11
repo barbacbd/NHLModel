@@ -1,16 +1,19 @@
 import argparse
 import inquirer
+from json import dumps, loads
 from logging import basicConfig, getLogger
 from math import sqrt
 from nhl_score_prediction.ann.features import findFeaturesMRMR, findFeaturesF1Scores
 from nhl_score_prediction.event import Game
 from os import listdir
-from os.path import dirname, abspath, join as path_join
+from os.path import dirname, abspath, join as path_join, exists
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
+
+FEATURE_FILE = path_join(*[dirname(abspath(__file__)), "features.json"])
 
 # Look up dictionary for the type of feature selection algorithms
 featureSelectionData = {
@@ -18,7 +21,7 @@ featureSelectionData = {
     "F1 Scores": findFeaturesF1Scores,
 }
 
-def inquireFiles():
+def parseInput():
     """Ask the user for input. This will determine if a new model is created or 
     a new/different one is created.
     """
@@ -67,6 +70,20 @@ def inquireFiles():
         outputs["featureSelection"] = answers["featureSelection"]
         outputs["numEpochs"] = int(answers["numEpochs"])
         outputs["batchSize"] = int(answers["batchSize"])
+
+        if answers["featureSelection"] == "mRMR":
+            questions = [
+                inquirer.Text('K', message="K", default=10)
+            ]
+            answers = inquirer.prompt(questions)
+            outputs["K"] = int(answers["K"])
+        elif answers["featureSelection"] == "F1 Scores":
+            questions = [
+                inquirer.Text('precision', message="precision", default=1.0)
+            ]
+            answers = inquirer.prompt(questions)
+            outputs["precision"] = float(answers["precision"])
+
     else:
         outputs["savedModelFile"] = path_join(*[dirname(abspath(__file__)), savedModelFile])
 
@@ -116,7 +133,7 @@ basicConfig(level=args.logLevel.upper())
 logger = getLogger("nhl_neural_net")
 
 # Ask for all user input
-outputs = inquireFiles()
+outputs = parseInput()
 
 model = None
 if "analysisFile" in outputs:
@@ -129,8 +146,11 @@ if "analysisFile" in outputs:
 
     # use the default values for feature selection (when applicable).
     logger.debug(f"feature selection algorithm: {outputs['featureSelection']}")
-    features = featureSelectionData[outputs["featureSelection"]](trainDF, trainOutput)
+    features = featureSelectionData[outputs["featureSelection"]](trainDF, trainOutput, **outputs)
     logger.debug(f"selected features: {features}")
+
+    with open(FEATURE_FILE, "w") as jsonFile:
+        jsonFile.write(dumps({"features": features}, indent=2))
 
     # only keep the features that we selected
     trainDF = trainDF[features]
@@ -184,11 +204,30 @@ if model is None:
     logger.error("model creation/load failed.")
     exit(1)
 
+
+if not exists(FEATURE_FILE):
+    logger.critical(f"failed to find features file {FEATURE_FILE}")
+    exit(1)
+
+features = []
+with open(FEATURE_FILE, 'rb') as jsonFile:
+    jsonData = loads(jsonFile.read())
+
+    features = jsonData.get("features", [])
+
+if not features:
+    logger.critical("failed to access features")
+    exit(1)
+
 # the file to compare predicted vs actual data to will always be present
 # the model has been loaded/created 
 predictFile = outputs["predictFile"]
 predictDF = pd.read_excel(predictFile)
 predictDF, actualOutput = correctData(predictDF)
+
+# only keep the columns that are the same as the features we selected.
+# NOTE: this will fail if the features do not exist in the data set to predict
+predictDF = predictDF[features]
 
 predicted = model.predict(predictDF)
 predictedOutcomes = [int(round(x[0], 2)) for x in predicted]

@@ -173,6 +173,9 @@ def _parseInternalBoxScorePlayersNew(teamDict):
 
     skaterDict = {
         "assists": 0,
+        "shortHandedGoals": 0,
+        "shortHandedAssists": 0,
+        "powerPlayAssists": 0
     }
     goalieDict = {
         "saves": 0,
@@ -197,6 +200,9 @@ def _parseInternalBoxScorePlayersNew(teamDict):
                 if timeOnIce > 0:
                     numPlayers += 1
                     skaterDict['assists'] += playerData["assists"]
+                    skaterDict['shortHandedGoals'] += playerData["shorthandedGoals"]
+                    skaterDict["powerPlayAssists"] += (playerData["powerPlayPoints"] - playerData["powerPlayGoals"])
+                    skaterDict["shortHandedAssists"] += (playerData["shPoints"] - playerData["shorthandedGoals"])
 
         elif playerType in ("goalies",):
             for playerData in playerValues:
@@ -419,12 +425,7 @@ if version == "old":
 
         if jsonData:
 
-            localGameData = {}
-
             gameInfo = jsonData["gameData"]
-            localGameData = {
-                "gameId": gameInfo["game"]["pk"]
-            }
             boxScore = jsonData["liveData"]["boxscore"]
             homeTeamData, awayTeamData = parseBoxScore(boxScore)
             
@@ -511,7 +512,6 @@ else:
     seasonParsedEvents[year] = {}
     parsedHomeTeamEvents = {}
 
-    localGameData = {}
     for _, boxscore in jsonData["boxScores"].items():
         homeTeamData, awayTeamData = parseBoxScoreNew(boxscore)
 
@@ -588,23 +588,3 @@ print(df.isna().sum())
 if exists(datasetFilename):
     remove(datasetFilename)
 df.to_excel(datasetFilename)
-
-
-# # predict the optimal number of features 
-# from sklearn.metrics import f1_score
-# from sklearn.ensemble import RandomForestClassifier
-
-
-# output = df["winner"]
-
-# # Drop the output from the Dataframe, leaving the only data left as
-# # the dataset to train.
-# df.drop(labels=["winner"], axis=1,inplace=True)
-# df.drop(labels=[
-#         "teamId",
-#         "teamName", 
-#         "triCode", 
-#     ], 
-#     axis=1, 
-#     inplace=True
-# )
