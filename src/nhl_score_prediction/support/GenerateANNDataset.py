@@ -162,7 +162,13 @@ def parseBoxScore(boxscore):
     homeTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["home"]))
     awayTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["away"]))
 
-    return homeTeamData, awayTeamData
+    ret = {}
+    for k, v in homeTeamData.items():
+        ret[f"ht{k.capitalize()}"] = v
+    for k, v in awayTeamData.items():
+        ret[f"at{k.capitalize()}"] = v
+
+    return ret
 
 
 def _parseInternalBoxScorePlayersNew(teamDict):
@@ -268,18 +274,19 @@ def parseBoxScoreNew(boxscore):
         boxscore["boxscore"]["playerByGameStats"]["awayTeam"]
     ))
 
-    homeTeamData.update({
+    ret = {}
+    for k, v in homeTeamData.items():
+        ret[f"ht{k.capitalize()}"] = v
+    for k, v in awayTeamData.items():
+        ret[f"at{k.capitalize()}"] = v
+
+    ret.update({
         "gameId": boxscore["id"], 
-        "teamType": 1,
-        "winner": bool(homeTeamData["goals"] > awayTeamData["goals"])
-    })
-    awayTeamData.update({
-        "gameId": boxscore["id"], 
-        "teamType": 0,
-        "winner": not homeTeamData["winner"]
+        "winner": bool(ret["htGoals"] > ret["atGoals"])
     })
 
-    return homeTeamData, awayTeamData
+
+    return ret
 
 
 def parseRecentData(data, maxRecords=None, gameType=""):
@@ -427,17 +434,11 @@ if version == "old":
 
             gameInfo = jsonData["gameData"]
             boxScore = jsonData["liveData"]["boxscore"]
-            homeTeamData, awayTeamData = parseBoxScore(boxScore)
+            gameData = parseBoxScore(boxScore)
             
-            homeTeamData.update({
+            gameData.update({
                 "gameId": gameInfo["game"]["pk"], 
-                "teamType": 1,
-                "winner": bool(homeTeamData["goals"] > awayTeamData["goals"])
-            })
-            awayTeamData.update({
-                "gameId": gameInfo["game"]["pk"], 
-                "teamType": 0,
-                "winner": not homeTeamData["winner"]
+                "winner": bool(gameData["htGoals"] > gameData["atGoals"])
             })
             
             # The following calculates the wins/losses win percentage, any win/lose streak, total 
@@ -445,56 +446,56 @@ if version == "old":
             # if the team is home or away). These are extra statistics that are not provided by the
             # box score.
             # NOTE: these calculations should be run before the current game information is added
-            wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
-            _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
-            _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
-            _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
-            homeTeamData.update({
-                "recentWinPercent": winPercent,
-                "totalWinPercent": totalWinPercent,
-                "gameTypeWinPercentRecent": winPercentHomeRecent,
-                "gameTypeWinPercent": totalWinPercentHome,
-                "streak": streak
-            })
-            wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10)
-            _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']])
-            _, _, winPercentAwayRecent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10, "A")
-            _, _, totalWinPercentAway, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], None, "A")
-            awayTeamData.update({
-                "recentWinPercent": winPercent,
-                "totalWinPercent": totalWinPercent,
-                "gameTypeWinPercentRecent": winPercentAwayRecent,
-                "gameTypeWinPercent": totalWinPercentAway,
-                "streak": streak
-            })
+            # wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
+            # _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
+            # _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
+            # _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
+            # homeTeamData.update({
+            #     "recentWinPercent": winPercent,
+            #     "totalWinPercent": totalWinPercent,
+            #     "gameTypeWinPercentRecent": winPercentHomeRecent,
+            #     "gameTypeWinPercent": totalWinPercentHome,
+            #     "streak": streak
+            # })
+            # wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10)
+            # _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']])
+            # _, _, winPercentAwayRecent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10, "A")
+            # _, _, totalWinPercentAway, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], None, "A")
+            # awayTeamData.update({
+            #     "recentWinPercent": winPercent,
+            #     "totalWinPercent": totalWinPercent,
+            #     "gameTypeWinPercentRecent": winPercentAwayRecent,
+            #     "gameTypeWinPercent": totalWinPercentAway,
+            #     "streak": streak
+            # })
 
             # Now that the data above has been added to the list of features that _could_ determine
             # the outcome of a game, add the actual outcome of the game and home vs away value
             # to be used for the next calculations.
-            if homeTeamData["goals"] > awayTeamData["goals"]:
-                teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["W", "H"])
-                teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["L", "A"])
-            else:
-                teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["L", "H"])
-                teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["W", "A"])
+            # if homeTeamData["goals"] > awayTeamData["goals"]:
+            #     teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["W", "H"])
+            #     teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["L", "A"])
+            # else:
+            #     teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["L", "H"])
+            #     teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["W", "A"])
 
             # When performing the poisson distribution, an attack vs defense score was created.
             # This _could_ be a useful statistic for predicting future game outcomes. The attack and
             # defense score can be calculated for any team at any time during the season, so this
             # means that there is less estimation involved.
-            if homeTeamData["teamId"] in parsedHomeTeamEvents:
-                for game in parsedHomeTeamEvents[homeTeamData["teamId"]]:
-                    if game.gameId == gameInfo["game"]["pk"]:
-                        homeTeamData.update({
-                            "attackStrength": game.homeAttackStrength, 
-                            "defenseStrength": game.homeDefenseStrength,
-                        })
-                        awayTeamData.update({
-                            "attackStrength": game.awayAttackStrength,
-                            "defenseStrength": game.awayDefenseStrength,
-                        })
+            # if homeTeamData["teamId"] in parsedHomeTeamEvents:
+            #     for game in parsedHomeTeamEvents[homeTeamData["teamId"]]:
+            #         if game.gameId == gameInfo["game"]["pk"]:
+            #             homeTeamData.update({
+            #                 "attackStrength": game.homeAttackStrength, 
+            #                 "defenseStrength": game.homeDefenseStrength,
+            #             })
+            #             awayTeamData.update({
+            #                 "attackStrength": game.awayAttackStrength,
+            #                 "defenseStrength": game.awayDefenseStrength,
+            #             })
 
-            totalData.extend([homeTeamData, awayTeamData])
+            totalData.append(gameData)
 else:
     # new version
     jsonData = None
@@ -513,48 +514,45 @@ else:
     parsedHomeTeamEvents = {}
 
     for _, boxscore in jsonData["boxScores"].items():
-        homeTeamData, awayTeamData = parseBoxScoreNew(boxscore)
+        gameData = parseBoxScoreNew(boxscore)
 
-        # print(homeTeamData)
-        # print(awayTeamData)
-    
         # The following calculates the wins/losses win percentage, any win/lose streak, total 
         # win percentage (season), and the home or away win percentage (based on the type of game
         # if the team is home or away). These are extra statistics that are not provided by the
         # box score.
         # NOTE: these calculations should be run before the current game information is added
-        wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
-        _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
-        _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
-        _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
-        homeTeamData.update({
-            "recentWinPercent": winPercent,
-            "totalWinPercent": totalWinPercent,
-            "gameTypeWinPercentRecent": winPercentHomeRecent,
-            "gameTypeWinPercent": totalWinPercentHome,
-            "streak": streak
-        })
-        wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10)
-        _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']])
-        _, _, winPercentAwayRecent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10, "A")
-        _, _, totalWinPercentAway, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], None, "A")
-        awayTeamData.update({
-            "recentWinPercent": winPercent,
-            "totalWinPercent": totalWinPercent,
-            "gameTypeWinPercentRecent": winPercentAwayRecent,
-            "gameTypeWinPercent": totalWinPercentAway,
-            "streak": streak
-        })
+        # wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
+        # _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
+        # _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
+        # _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
+        # homeTeamData.update({
+        #     "recentWinPercent": winPercent,
+        #     "totalWinPercent": totalWinPercent,
+        #     "gameTypeWinPercentRecent": winPercentHomeRecent,
+        #     "gameTypeWinPercent": totalWinPercentHome,
+        #     "streak": streak
+        # })
+        # wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10)
+        # _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']])
+        # _, _, winPercentAwayRecent, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], 10, "A")
+        # _, _, totalWinPercentAway, _ = parseRecentData(teamRecentWinPercents[awayTeamData['teamId']], None, "A")
+        # awayTeamData.update({
+        #     "recentWinPercent": winPercent,
+        #     "totalWinPercent": totalWinPercent,
+        #     "gameTypeWinPercentRecent": winPercentAwayRecent,
+        #     "gameTypeWinPercent": totalWinPercentAway,
+        #     "streak": streak
+        # })
 
         # Now that the data above has been added to the list of features that _could_ determine
         # the outcome of a game, add the actual outcome of the game and home vs away value
         # to be used for the next calculations.
-        if homeTeamData["goals"] > awayTeamData["goals"]:
-            teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["W", "H"])
-            teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["L", "A"])
-        else:
-            teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["L", "H"])
-            teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["W", "A"])
+        # if homeTeamData["goals"] > awayTeamData["goals"]:
+        #     teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["W", "H"])
+        #     teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["L", "A"])
+        # else:
+        #     teamRecentWinPercents[homeTeamData["teamId"]].insert(0, ["L", "H"])
+        #     teamRecentWinPercents[awayTeamData["teamId"]].insert(0, ["W", "A"])
 
         # When performing the poisson distribution, an attack vs defense score was created.
         # This _could_ be a useful statistic for predicting future game outcomes. The attack and
@@ -572,7 +570,7 @@ else:
         #                 "defenseStrength": game.awayDefenseStrength,
         #             })
 
-        totalData.extend([homeTeamData, awayTeamData])
+        totalData.append(gameData)
 
 
 
@@ -588,3 +586,4 @@ print(df.isna().sum())
 if exists(datasetFilename):
     remove(datasetFilename)
 df.to_excel(datasetFilename)
+

@@ -110,7 +110,7 @@ def correctData(df, droppable=[]):
     # value or a training data outcome
     output = df["winner"]
 
-    labelsToRemove = ["teamId", "teamName", "triCode"] + droppable 
+    labelsToRemove = ["atTeamname", "atTricode", "htTeamname", "htTricode"] + droppable 
 
     # Drop the output from the Dataframe, leaving the only data left as
     # the dataset to train.
@@ -225,21 +225,101 @@ predictFile = outputs["predictFile"]
 predictDF = pd.read_excel(predictFile)
 predictDF, actualOutput = correctData(predictDF)
 
+# this is now a list of all team ids.
+teamIds = list(set(predictDF["htTeamid"].tolist()))
+
+logger.debug(f"Team IDS: {teamIds}")
+
+data = []
+for teamId in teamIds:
+    homeTeamRecords = predictDF.loc[(predictDF['htTeamid']==teamId)]
+    homeTeamRecords = homeTeamRecords.mean(axis=0).astype(int)
+    homeTeamRecords['htTeamid'] = teamId
+    homeTeamRecords['atTeamid'] = 0
+    data.append(homeTeamRecords)
+
+    awayTeamRecords = predictDF.loc[(predictDF['atTeamid']==teamId)]
+    awayTeamRecords = awayTeamRecords.mean(axis=0).astype(int)
+    awayTeamRecords['htTeamid'] = 0
+    awayTeamRecords['atTeamid'] = teamId
+    data.append(awayTeamRecords)
+
+# Now we have all of the average data from the current season, use this data to predict the next games 
+averagesDF = pd.DataFrame(data, columns=predictDF.columns)
+
+# find the games for the current day
+import requests
+from datetime import datetime
+
+# todaysDate = datetime.now()
+# data = f'https://api-web.nhle.com/v1/score/{todaysDate.strftime("%Y-%m-%d")}'
+
+data = 'https://api-web.nhle.com/v1/score/2023-12-12'
+
+try:
+    todaysGameData = requests.get(data).json()
+except:
+    logger.error("failed to retrieve NHL data")
+    exit(1)
+
+if "games" not in todaysGameData or len(todaysGameData["games"]) == 0:
+    # logger.error(f"no games foud for today {todaysDate}")
+    exit(1)
+
+futrData = []
+# manufacture the data from the averages of the current season. 
+for game in todaysGameData["games"]:
+    # print(f"home = {game['homeTeam']['id']}, away = {game['awayTeam']['id']}")
+    htRecord = averagesDF.loc[(averagesDF['htTeamid']==game['homeTeam']['id'])]
+    atRecord = averagesDF.loc[(averagesDF['atTeamid']==game['awayTeam']['id'])]
+
+    idx = htRecord.index[0]
+    for col in atRecord.columns:
+        if col.startswith("at"):
+            print(f"{col} = {atRecord.iloc[0][col]}")
+            htRecord.at[idx, col] = atRecord.iloc[0][col]
+
+    futrData.append(htRecord)
+
+
+futrGamesDF = pd.concat(futrData)
+#futrGamesDF = pd.DataFrame(futrData, columns=averagesDF.columns)
+# print(futrGamesDF)
+# exit(1)
+
 # only keep the columns that are the same as the features we selected.
 # NOTE: this will fail if the features do not exist in the data set to predict
-predictDF = predictDF[features]
+futrGamesDF = futrGamesDF[features]
 
-predicted = model.predict(predictDF)
+predicted = model.predict(futrGamesDF)
 predictedOutcomes = [int(round(x[0], 2)) for x in predicted]
-actualOutput = [int(x) for x in actualOutput]
 
-assert len(actualOutput) == len(predictedOutcomes)
+teamsData = dirname(abspath(__file__)).split("/")
+teamsData = teamsData[:-1]
+teamsData.extend(["support", "NHLTeams.json"])
+teamsData = "/" + path_join(*teamsData)
 
-diffValues = [int(abs(actualOutput[i] - predictedOutcomes[i])) for i in range(len(actualOutput))]
-totalDiffs = int(sum(diffValues))
-correct = int(len(actualOutput) - totalDiffs)
-accuracy = round(100.0 * (float(correct) / float(len(actualOutput))), 2)
+with open(teamsData, "rb") as jsonFile:
+    jsonData = loads(jsonFile.read())
 
-print(f"Correct outcomes: {correct} ({accuracy}%)")
-print(f"Incorrect outcomes: {totalDiffs} ({round(100 - accuracy, 2)}%)")
+for index, game in enumerate(todaysGameData["games"]):
+    homeTeam = [x["fullName"] for x in jsonData if x["id"] == game['homeTeam']['id']][0]
+    awayTeam = [x["fullName"] for x in jsonData if x["id"] == game['awayTeam']['id']][0]
 
+    predictedWinner = homeTeam if predictedOutcomes[index] == 1 else awayTeam
+
+    print(f"home = {homeTeam}\taway = {awayTeam}\tpredicted winner = {predictedWinner}")
+
+# actualOutput = [int(x) for x in actualOutput]
+
+# assert len(actualOutput) == len(predictedOutcomes)
+
+# diffValues = [int(abs(actualOutput[i] - predictedOutcomes[i])) for i in range(len(actualOutput))]
+# totalDiffs = int(sum(diffValues))
+# correct = int(len(actualOutput) - totalDiffs)
+# accuracy = round(100.0 * (float(correct) / float(len(actualOutput))), 2)
+
+# print(f"Correct outcomes: {correct} ({accuracy}%)")
+# print(f"Incorrect outcomes: {totalDiffs} ({round(100 - accuracy, 2)}%)")
+
+logger.debug(f"predicted outcomes = {predictedOutcomes}")
