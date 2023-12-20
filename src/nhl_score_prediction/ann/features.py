@@ -59,7 +59,7 @@ def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
         feature_importances = forest.feature_importances_
 
         y_pred = forest.predict(df)
-        f1 = f1_score(outputs, y_pred)
+        f1 = f1_score(outputs, y_pred, average='micro')
         f1Scores.append(f1)
         feats.append(df.columns)
 

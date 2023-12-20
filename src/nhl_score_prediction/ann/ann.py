@@ -76,7 +76,16 @@ def parseInput():
                 inquirer.Text('K', message="K", default=10)
             ]
             answers = inquirer.prompt(questions)
-            outputs["K"] = int(answers["K"])
+
+            try:
+                outputs["K"] = int(answers["K"])
+            except TypeError:
+                pass
+            finally:
+                outputs["K"] = outputs.get("K", None)
+                if outputs["K"] == 0:
+                    outputs["K"] = None
+
         elif answers["featureSelection"] == "F1 Scores":
             questions = [
                 inquirer.Text('precision', message="precision", default=1.0)
@@ -172,7 +181,7 @@ if "analysisFile" in outputs:
             model.add(Dense(1, activation='sigmoid'))
             break
         logger.info(f"Creating next layer = {level}")
-        model.add(Dense(level, activation='relu'))
+        model.add(Dense(level, activation='sigmoid'))
 
     # create the model
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -233,13 +242,13 @@ logger.debug(f"Team IDS: {teamIds}")
 data = []
 for teamId in teamIds:
     homeTeamRecords = predictDF.loc[(predictDF['htTeamid']==teamId)]
-    homeTeamRecords = homeTeamRecords.mean(axis=0).astype(int)
+    homeTeamRecords = homeTeamRecords.mean(axis=0).astype(float)
     homeTeamRecords['htTeamid'] = teamId
     homeTeamRecords['atTeamid'] = 0
     data.append(homeTeamRecords)
 
     awayTeamRecords = predictDF.loc[(predictDF['atTeamid']==teamId)]
-    awayTeamRecords = awayTeamRecords.mean(axis=0).astype(int)
+    awayTeamRecords = awayTeamRecords.mean(axis=0).astype(float)
     awayTeamRecords['htTeamid'] = 0
     awayTeamRecords['atTeamid'] = teamId
     data.append(awayTeamRecords)
@@ -247,14 +256,17 @@ for teamId in teamIds:
 # Now we have all of the average data from the current season, use this data to predict the next games 
 averagesDF = pd.DataFrame(data, columns=predictDF.columns)
 
+if not __debug__:
+    logger.debug("creating averages.xlsx")
+    averagesDF.to_excel('averages.xlsx')
+
 # find the games for the current day
 import requests
 from datetime import datetime
 
 # todaysDate = datetime.now()
 # data = f'https://api-web.nhle.com/v1/score/{todaysDate.strftime("%Y-%m-%d")}'
-
-data = 'https://api-web.nhle.com/v1/score/2023-12-12'
+data = 'https://api-web.nhle.com/v1/score/2023-12-19'
 
 try:
     todaysGameData = requests.get(data).json()
@@ -263,29 +275,28 @@ except:
     exit(1)
 
 if "games" not in todaysGameData or len(todaysGameData["games"]) == 0:
-    # logger.error(f"no games foud for today {todaysDate}")
+    logger.error(f"no games foud for today {todaysDate}")
     exit(1)
 
 futrData = []
 # manufacture the data from the averages of the current season. 
 for game in todaysGameData["games"]:
-    # print(f"home = {game['homeTeam']['id']}, away = {game['awayTeam']['id']}")
+    logger.debug(f"Creating data for today: home = {game['homeTeam']['id']}, away = {game['awayTeam']['id']}")
     htRecord = averagesDF.loc[(averagesDF['htTeamid']==game['homeTeam']['id'])]
-    atRecord = averagesDF.loc[(averagesDF['atTeamid']==game['awayTeam']['id'])]
+    atRecord = averagesDF.loc[(averagesDF['atTeamid']==game['awayTeam']['id'])]    
 
     idx = htRecord.index[0]
     for col in atRecord.columns:
         if col.startswith("at"):
-            print(f"{col} = {atRecord.iloc[0][col]}")
             htRecord.at[idx, col] = atRecord.iloc[0][col]
 
     futrData.append(htRecord)
 
 
 futrGamesDF = pd.concat(futrData)
-#futrGamesDF = pd.DataFrame(futrData, columns=averagesDF.columns)
-# print(futrGamesDF)
-# exit(1)
+if not __debug__:
+    logger.debug("creating future.xlsx")
+    futrGamesDF.to_excel('future.xlsx')
 
 # only keep the columns that are the same as the features we selected.
 # NOTE: this will fail if the features do not exist in the data set to predict
@@ -308,7 +319,9 @@ for index, game in enumerate(todaysGameData["games"]):
 
     predictedWinner = homeTeam if predictedOutcomes[index] == 1 else awayTeam
 
-    print(f"home = {homeTeam}\taway = {awayTeam}\tpredicted winner = {predictedWinner}")
+    # print([homeTeam, awayTeam, predictedWinner])
+
+    logger.info(f"home = {homeTeam:<30} away = {awayTeam:<30} predicted winner = {predictedWinner:<30}")
 
 # actualOutput = [int(x) for x in actualOutput]
 

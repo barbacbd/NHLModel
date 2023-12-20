@@ -22,8 +22,8 @@ _staticBoxScoreTeamData = {
     "powerPlayOpportunities": ["teamStats", "teamSkaterStats", "powerPlayOpportunities"],
     "faceOffWinPercentage": ["teamStats", "teamSkaterStats", "faceOffWinPercentage"],
     "blocked": ["teamStats", "teamSkaterStats", "blocked"],
-    "takeaways": ["teamStats", "teamSkaterStats", "takeaways"],
-    "giveaways": ["teamStats", "teamSkaterStats", "giveaways"],
+ #   "takeaways": ["teamStats", "teamSkaterStats", "takeaways"],
+ #   "giveaways": ["teamStats", "teamSkaterStats", "giveaways"],
     "hits": ["teamStats", "teamSkaterStats", "hits"],
 }
 
@@ -171,6 +171,23 @@ def parseBoxScore(boxscore):
     return ret
 
 
+def parseBoxScoreSplit(boxscore):
+    """Parse the box score. The box score will serve as a great starting point
+    for the neural net dataset. The boxscore differs from year to year, but the
+    main data points will be present.
+    """
+    homeTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["home"])
+    awayTeamData = _parseInternalBoxScoreTeams(boxscore["teams"]["away"])
+
+    homeTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["home"]))
+    awayTeamData.update(_parseInternalBoxScorePlayers(boxscore["teams"]["away"]))
+
+    homeTeamData["teamType"] = 1
+    awayTeamData["teamType"] = 0
+
+    return homeTeamData, awayTeamData
+
+
 def _parseInternalBoxScorePlayersNew(teamDict):
     numPlayers = 0
     numGoalies = 0
@@ -287,6 +304,28 @@ def parseBoxScoreNew(boxscore):
 
 
     return ret
+
+
+def parseBoxScoreNewSplit(boxscore):
+    """Parse the box score (new version). This version of the box score should be read
+    from the NHLOpenSeason.json file. The box score will serve as a great starting point
+    for the neural net dataset. The boxscore differs from year to year, but the
+    main data points will be present.
+    """
+    homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
+    awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
+
+    homeTeamData.update(_parseInternalBoxScorePlayersNew(
+        boxscore["boxscore"]["playerByGameStats"]["homeTeam"]
+    ))
+    awayTeamData.update(_parseInternalBoxScorePlayersNew(
+        boxscore["boxscore"]["playerByGameStats"]["awayTeam"]
+    ))
+
+    homeTeamData["gameId"] = boxscore["id"]
+    awayTeamData["gameId"] = boxscore["id"]
+
+    return homeTeamData, awayTeamData
 
 
 def parseRecentData(data, maxRecords=None, gameType=""):
@@ -435,7 +474,7 @@ if version == "old":
             gameInfo = jsonData["gameData"]
             boxScore = jsonData["liveData"]["boxscore"]
             gameData = parseBoxScore(boxScore)
-            
+
             gameData.update({
                 "gameId": gameInfo["game"]["pk"], 
                 "winner": bool(gameData["htGoals"] > gameData["atGoals"])
@@ -571,7 +610,6 @@ else:
         #             })
 
         totalData.append(gameData)
-
 
 
 # generate the dataframe and add to a spreadsheet
