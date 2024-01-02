@@ -64,7 +64,7 @@ clean = [
     "pyclean",
 ]
 [project.scripts]
-nhl-poisson-predict = "nhl_score_prediction.poisson.poisson:main"
+nhl-predict = "nhl_score_prediction.src.exec:main"
 
 [tool.setuptools.package-data]
 'src' = ['nhl_score_prediction/support/schedules/2022/*.json']

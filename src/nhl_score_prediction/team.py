@@ -1,5 +1,5 @@
 from enum import Enum
-from .event import EventType
+from nhl_score_prediction.event import EventType
 from statistics import mean
 
 
