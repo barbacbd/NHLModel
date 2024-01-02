@@ -3,11 +3,11 @@ requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nhl_score_prediction"
+name = "nhl_model"
 authors = [
 	{name = "Brent Barbachem", email = "barbacbd@gmail.com"},
 ]
-description = "NHL package/executable to predict NHL scores."
+description = "Package to create a model that can be used to predict the result of NHL games."
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
@@ -64,9 +64,12 @@ clean = [
     "pyclean",
 ]
 [project.scripts]
-nhl-predict = "nhl_score_prediction.src.exec:main"
+nhl-predict = "nhl_model.exec:main"
 
 [tool.setuptools.package-data]
-'src' = ['nhl_score_prediction/support/schedules/2022/*.json']
+'src' = [
+    'nhl_model/support/schedules/2022/*.json',
+    'nhl_model/support/NHLTeams.json',
+]
 
 

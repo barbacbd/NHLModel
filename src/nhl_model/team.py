@@ -1,16 +1,9 @@
-from enum import Enum
-from nhl_score_prediction.event import EventType
+from nhl_model.enums import TeamSide
+from nhl_model.event import EventType
 from statistics import mean
 
 
 SECONDS_PER_PERIOD = 1200  # 20 * 60
-
-
-class TeamSide(Enum):
-    # simple identifier to indicate home vs away status of
-    # a team during a game. 
-    AWAY = 0
-    HOME = 1
 
 
 class Team:

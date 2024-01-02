@@ -1,1 +1,2 @@
-recursive-include src/nhl_score_prediction/support/ *.json
+recursive-include src/nhl_model/support/ *.json
+include src/nhl_model/support/NHLTeams.json

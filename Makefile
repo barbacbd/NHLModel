@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Brent Barbachem
+# Copyright (c) 2024 Brent Barbachem
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ test:
 
 clean:
 	pip install -e .[clean]
-	yes | pip uninstall nhl_score_prediction
+	yes | pip uninstall nhl_model
 	rm -rf build
 	rm -rf src/*.egg-info
 	pyclean .

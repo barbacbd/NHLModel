@@ -4,8 +4,9 @@ import inquirer
 from json import dumps, loads
 from logging import getLogger
 from math import sqrt
-from nhl_score_prediction.dataset import pullDatasetNewAPI, BASE_SAVE_DIR
-from nhl_score_prediction.features import (
+from nhl_model.dataset import pullDatasetNewAPI, BASE_SAVE_DIR
+from nhl_model.enums import CompareFunction, Version
+from nhl_model.features import (
     findFeaturesMRMR, 
     findFeaturesF1Scores
 )
@@ -16,6 +17,7 @@ import requests
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
+from warnings import warn
 
 
 FEATURE_FILE = path_join(*[BASE_SAVE_DIR, "features.json"])
@@ -29,35 +31,6 @@ FeatureSelectionData = {
     "mRMR": findFeaturesMRMR,
     "F1 Scores": findFeaturesF1Scores,
 }
-
-
-class CompareFunction(Enum):
-
-    # The default comparison function. AVERAGES takes all of the data points for
-    # the home and away team when they were home and away respectively, the data
-    # points are averaged for all games of this type. For instance, if the home team
-    # scored 4, 5, 6 goals in their three home games, the average number of goals 
-    # value would be 5 for goals.
-    AVERAGES = 'averages'
-
-    # Direct indicates that (when applicable) the home and away team
-    # values should be used from the games in which they played each other
-    # if this data cannot be found, then the AVERAGES method is used.
-    # There must be a record of the home team being the home team and the
-    # away team being the away team when the two teams played each other.
-    DIRECT = 'direct'
-
-
-class Version(Enum):
-    # Type/Version of the API to use for data.
-
-    # The new version will pull the data directly from the new
-    # version of the API.
-    NEW = "new"
-
-    # The old version requires the data is located in the `support`
-    # directory in data/nhl_data subdirectories
-    OLD = "old"
 
 
 def findFiles():
@@ -89,7 +62,9 @@ def findFiles():
     })
 
 
-    if answers["version"] == "old":
+    if answers["version"] == Version.OLD.value:
+        warn(f"search {OLD_DATA_DIR} for valid files, please select the 'new' version instead")
+
         # NOTE: if the user wants to use the original version of the API, the
         # data must already exist. The API can no longer be reached. For this particular
         # task, the data is expected to exist in the `directory` location above.
@@ -463,8 +438,6 @@ def prepareDataForPredictions(predictFile, comparisonFunction=CompareFunction.AV
         logger.error("failed to find todays game data")
         return None
 
-    # TODO: if teams have played before, we should take the average of those game data.
-    # If the home team has only played an away game against the other team we cannot take the data
     if comparisonFunction == CompareFunction.AVERAGES:
         dataPointDF = _createAverages(predictDF)
 
@@ -581,9 +554,3 @@ def execAnn():
         filename = f'{todaysDate.strftime("%Y-%m-%d")}-predictions.xlsx'
         filename = path_join(*[BASE_SAVE_DIR, filename])
         pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
-
-
-# TODO: Document current model data (parameters)
-# TODO: split out the data from support into different files and make a flat 
-# directory. 
-# TODO: add more about asking for user input.   

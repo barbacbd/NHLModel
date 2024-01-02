@@ -3,7 +3,7 @@ from datetime import datetime
 import inquirer
 from json import loads
 from logging import getLogger
-from nhl_score_prediction.event import Game
+from nhl_model.event import Game
 from os.path import dirname, abspath, join as path_join, exists
 from scipy.stats import poisson
 from statistics import mean
