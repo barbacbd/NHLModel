@@ -61,7 +61,6 @@ def findFiles():
         "endYear": endYear
     })
 
-
     if answers["version"] == Version.OLD.value:
         warn(f"search {OLD_DATA_DIR} for valid files, please select the 'new' version instead")
 
@@ -85,7 +84,6 @@ def findFiles():
         logger.debug("found no valid files")
 
     return output, validFiles
-
 
 
 def parseAnnArguments():
@@ -262,6 +260,21 @@ def _createHeadToHead(df):
     have played a home and home then there will be a record where each team is the 
     home and away team.
     """
+    def _handleAverages(avgs, homeTeamId, awayTeamId):
+        """Helper function to extract the home and away Team average data.
+        The data will be combined into a single record and returned.
+        """
+        hr = avgs.loc[(avgs['htTeamid']==homeTeamId)]
+        ar = avgs.loc[(avgs['atTeamid']==awayTeamId)]    
+
+        idx = hr.index[0]
+        for col in ar.columns:
+            if col.startswith("at"):
+                hr.at[idx, col] = ar.iloc[0][col]
+        
+        return hr
+
+
     logger.debug("creating the head to head dataframe")
 
     averagesDF = _createAverages(df)
@@ -272,8 +285,11 @@ def _createHeadToHead(df):
     for i in range(len(teamIds)):
         firstTeam = teamIds[i]
         
-        for j in range(i+1, len(teamIds)):
+        for j in range(i, len(teamIds)):
             secondTeam = teamIds[j]
+
+            if firstTeam == secondTeam:
+                continue
 
             homeFirst = df.loc[(df['htTeamid']==firstTeam) & (df['atTeamid']==secondTeam)]
             homeFirst.dropna(inplace=True)
@@ -283,16 +299,8 @@ def _createHeadToHead(df):
                 homeFirst['atTeamid'] = secondTeam
                 data.append(homeFirst)
             else:
-                # TODO: this can be made into a function
-                htRecord = averagesDF.loc[(averagesDF['htTeamid']==firstTeam)]
-                atRecord = averagesDF.loc[(averagesDF['atTeamid']==secondTeam)]    
-
-                idx = htRecord.index[0]
-                for col in atRecord.columns:
-                    if col.startswith("at"):
-                        htRecord.at[idx, col] = atRecord.iloc[0][col]
-                
-                data.append(htRecord)
+                # squeeze/convert the Dataframe to a Series
+                data.append(_handleAverages(averagesDF, firstTeam, secondTeam).squeeze(axis=0))
 
             homeSec = df.loc[(df['htTeamid']==secondTeam) & (df['atTeamid']==firstTeam)]
             homeSec.dropna(inplace=True)
@@ -302,16 +310,8 @@ def _createHeadToHead(df):
                 homeSec['atTeamid'] = firstTeam
                 data.append(homeSec)
             else:
-                # TODO: this can be made into a function
-                htRecord = averagesDF.loc[(averagesDF['htTeamid']==secondTeam)]
-                atRecord = averagesDF.loc[(averagesDF['atTeamid']==firstTeam)]    
-
-                idx = htRecord.index[0]
-                for col in atRecord.columns:
-                    if col.startswith("at"):
-                        htRecord.at[idx, col] = atRecord.iloc[0][col]
-                
-                data.append(htRecord)
+                # squeeze/convert the Dataframe to a Series
+                data.append(_handleAverages(averagesDF, secondTeam, firstTeam).squeeze(axis=0))
 
     # Now we have all of the average data from the current season for head to head matches
     h2hDF = pd.DataFrame(data, columns=df.columns)
@@ -344,14 +344,14 @@ def correctData(df, droppable=[]):
     return df, output
 
 
-def createModel(analysisFile, featureSelectionAlgorithm, **kwargs):
+def createModel(analysisFile, featureSelection, **kwargs):
     """Create the model that will be used for predicting future games. If the user has 
     selected this function then a new model is created. 
 
     :param analysisFile: Filename of the input to the model. This can be any number of records.
     These records are expected to be created using the functions in `dataset.py`.
 
-    :param featureSelectionAlgorithm: Algorithm used for selecting the features used during 
+    :param featureSelection: Algorithm used for selecting the features used during 
     model training as well as output prediction.
 
     :kwargs:
@@ -367,8 +367,8 @@ def createModel(analysisFile, featureSelectionAlgorithm, **kwargs):
     trainDF, trainOutput = correctData(trainDF, droppable=[])
 
     # use the default values for feature selection (when applicable).
-    logger.debug(f"feature selection algorithm: {featureSelectionAlgorithm}")
-    features = FeatureSelectionData[featureSelectionAlgorithm](trainDF, trainOutput, **kwargs)
+    logger.debug(f"feature selection algorithm: {featureSelection}")
+    features = FeatureSelectionData[featureSelection](trainDF, trainOutput, **kwargs)
     logger.debug(f"selected features: {features}")
 
     with open(FEATURE_FILE, "w") as jsonFile:
@@ -484,17 +484,13 @@ def execAnn():
 
     model = None
     if "analysisFile" in outputs:
-        model = createModel(
-            outputs['analysisFile'],
-            outputs['featureSelection'],
-            **outputs
-        )
+        model = createModel(**outputs)
     elif "savedModelFile" in outputs:
         logger.debug("loading saved model")
         model = tf.keras.models.load_model(outputs["savedModelFile"])
 
     if model is None:
-        logger.error("model creation/load failed.")
+        logger.error("valid model not found")
         return
 
     if not exists(FEATURE_FILE):
@@ -514,6 +510,7 @@ def execAnn():
     preparedDF = prepareDataForPredictions(
         outputs["predictFile"], 
         comparisonFunction=CompareFunction.DIRECT
+        # comparisonFunction=CompareFunction.DIRECT
     )
 
     if preparedDF is None:
@@ -537,6 +534,7 @@ def execAnn():
 
     outputForDF = []
     for index, game in enumerate(todaysGameData["games"]):
+        print(index)
         homeTeam = [x["fullName"] for x in teams if x["id"] == game['homeTeam']['id']][0]
         awayTeam = [x["fullName"] for x in teams if x["id"] == game['awayTeam']['id']][0]
 
