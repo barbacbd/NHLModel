@@ -1,3 +1,11 @@
+"""Generate Schedules is a support script that will generate
+the schedule for past seasons. The script is intended to be
+executed before executing the poisson option through `exec.py`.
+
+Note: The data should be present in this directory (/data/nhl_data).
+This requires the old api. 
+"""
+
 from json import dumps, loads
 import os
 from os import mkdir
@@ -6,7 +14,7 @@ from shutil import rmtree
 
 
 # Assume that the directory is in this same directory as this script
-directory = 'nhl_data/'
+directory = 'data/nhl_data/'
 
 # Go through the list of files. Make sure that we have all players (these may
 # require some corrections, see Corrections.py for more information). Retrieve

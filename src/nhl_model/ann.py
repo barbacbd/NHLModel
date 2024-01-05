@@ -168,6 +168,12 @@ def parseAnnArguments():
     predictFile = answers["predictFile"]
     outputs["predictFile"] = path_join(*[BASE_SAVE_DIR, predictFile])
 
+    questions = [
+        inquirer.List('compareFunction', message="Function used for evaluating team data.", choices=[x.name for x in CompareFunction]),
+    ]
+    answers = inquirer.prompt(questions)
+    outputs["compareFunction"] = [x for x in CompareFunction if x.name == answers["compareFunction"]][0]
+
     return outputs
 
 
@@ -534,7 +540,6 @@ def execAnn():
 
     outputForDF = []
     for index, game in enumerate(todaysGameData["games"]):
-        print(index)
         homeTeam = [x["fullName"] for x in teams if x["id"] == game['homeTeam']['id']][0]
         awayTeam = [x["fullName"] for x in teams if x["id"] == game['awayTeam']['id']][0]
 
