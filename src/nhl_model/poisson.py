@@ -323,7 +323,7 @@ def parseSeasonEvents(year):
     return parsedHomeTeamEvents, parsedAwayTeamEvents
 
 
-def execPoisson():
+def execPoisson(year):
     """Main execution point
 
     Currently this would predict the score for the current season, theoretically if the the 
@@ -332,8 +332,9 @@ def execPoisson():
     GOAL: Read the previous season and current season data. Use this information to 
     predict the scores for the current season or season that the user enters.
 
+    :param year: Year, in which the season started, for which the analysis should be
+    performed. 
     """
-    year = parsePoissonArguments()
 
     homeTeamEvents, awayTeamEvents = parseSeasonEvents(year)
 

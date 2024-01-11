@@ -10,7 +10,7 @@ from nhl_model.features import (
     findFeaturesMRMR, 
     findFeaturesF1Scores
 )
-from os import listdir, walk, mkdir
+from os import listdir, walk, mkdir, remove
 from os.path import dirname, abspath, join as path_join, exists
 import pandas as pd
 import requests
@@ -20,6 +20,7 @@ from tensorflow.keras.layers import Dense
 from warnings import warn
 
 
+CONFIG_FILE = path_join(*[BASE_SAVE_DIR, "nhl_model_config.json"])
 FEATURE_FILE = path_join(*[BASE_SAVE_DIR, "features.json"])
 OLD_DATA_DIR = path_join(*[dirname(abspath(__file__)), "support", "data", "nhl_data"])
 
@@ -33,35 +34,15 @@ FeatureSelectionData = {
 }
 
 
-def findFiles():
+def findFiles(version, startYear, endYear):
     """Parse the arguements for the program by reading in the static file that
     contains the basic statistics for all teams and all seasons.
     """
-
-    currentYear = datetime.now().year
-
-    validFiles = []
-    output = {}
-    questions = [
-        inquirer.List('version', message="Select a version of data", choices=[x.value for x in Version]),
-        inquirer.Text('startYear', message="Enter the year for the analysis to start.", default=currentYear-1),
-        inquirer.Text('endYear', message="Enter the year for the analysis to end.", default=currentYear-1),
-    ]
-    answers = inquirer.prompt(questions)
-    output["version"] = answers["version"]
-    startYear = int(answers["startYear"])
-    endYear = int(answers["endYear"])
-
     # correct the data 
     startYear, endYear = min([startYear, endYear]), max([startYear, endYear])
 
-    output.update({
-        "version": output["version"],
-        "startYear": startYear, 
-        "endYear": endYear
-    })
-
-    if answers["version"] == Version.OLD.value:
+    validFiles = []
+    if version == Version.OLD.value:
         warn(f"search {OLD_DATA_DIR} for valid files, please select the 'new' version instead")
 
         # NOTE: if the user wants to use the original version of the API, the
@@ -83,84 +64,114 @@ def findFiles():
     if not validFiles:
         logger.debug("found no valid files")
 
-    return output, validFiles
+    return validFiles
 
 
-def parseAnnArguments():
+def parseAnnArguments(config):
     """Ask the user for input. This will determine if a new model is created or 
     a new/different one is created.
+
+    :param config: dictionary containing any configuration information that is found
+    in the base directory.
     """
     outputs = {}
 
-    useModel = "no"
-    questions = [
-        inquirer.List('useModel', message="Would you like to use a saved model?", choices=["yes", "no"]),
-    ]
-    answers = inquirer.prompt(questions)
-    useModel = answers['useModel']
-
-    # The xlsx files are always output from the GenerateANNDataset.py script in support.
-    # Look for the output files from that directory with an xlsx extension.
-    analysisFile = ""
-    files = [x for x in listdir(BASE_SAVE_DIR) if x.endswith(".xlsx")]
-
-    savedModelFile = "None"
-
-    if useModel == "yes":
-        # the saved file will be in this directory.
-        potentialFiles = listdir(BASE_SAVE_DIR)
-        potentialFiles.insert(0, savedModelFile)
-
+    if "savedModel" in config and exists(config["savedModel"]):
+        loadModel = "yes"
+    else:
         questions = [
-            inquirer.List('savedModel', message="Select the model file.", choices=potentialFiles),
+            inquirer.List('loadModel', message="Would you like to use a saved model?", choices=["yes", "no"]),
         ]
         answers = inquirer.prompt(questions)
-        savedModelFile = answers['savedModel']
+        loadModel = answers['loadModel']
+
+    files = [x for x in listdir(BASE_SAVE_DIR) if x.endswith(".xlsx")]
+    analysisFile = ""
+
+    if loadModel == "yes":
+
+        if exists(path_join(*[BASE_SAVE_DIR, "nhl_model"])):
+            outputs["savedModel"] = path_join(*[BASE_SAVE_DIR, "nhl_model"])
+        else:
+            # logger.debug("failed to find model, asking to create a new one")
+            # allow the user to create the model
+            loadModel = "no"
 
     # this way in the event that no model was selected continue processing
-    if useModel == "no" or savedModelFile == "None":
-        questions = [
-            inquirer.Text('numEpochs', message="How many epochs during training?", default=1000),
-            inquirer.Text('batchSize', message="Size of batches?", default=30),
-            inquirer.List('analysisFile', message="File used to train the data.", choices=files),
-            inquirer.List('featureSelection', message='Feature selection method.', choices=list(FeatureSelectionData.keys()))
-        ]
-        answers = inquirer.prompt(questions)
-        analysisFile = answers["analysisFile"]
+    if loadModel == "no":
+        questions = {
+            "numEpochs": inquirer.Text(
+                'numEpochs', 
+                message="How many epochs during training?", 
+                default=1000
+            ),
+            "batchSize": inquirer.Text(
+                'batchSize', 
+                message="Size of batches?", 
+                default=30
+            ),
+            "analysisFile": inquirer.List(
+                'analysisFile', 
+                message="File used to train the data.", 
+                choices=files
+            ),
+            "featureSelection" :inquirer.List(
+                'featureSelection', 
+                message='Feature selection method.', 
+                choices=list(FeatureSelectionData.keys())
+            ),
+        }
 
-        outputs["analysisFile"] = path_join(*[BASE_SAVE_DIR, analysisFile])
-        outputs["featureSelection"] = answers["featureSelection"]
-        outputs["numEpochs"] = int(answers["numEpochs"])
-        outputs["batchSize"] = int(answers["batchSize"])
+        finalQuestions = [value for key, value in questions.items() if config.get(key, None) is None]
+        outputs.update({
+            key: config[key] 
+            for key, value in questions.items() if config.get(key, None) is not None
+        })
 
-        if answers["featureSelection"] == "mRMR":
-            questions = [
-                inquirer.Text('K', message="K", default=10)
-            ]
-            answers = inquirer.prompt(questions)
+        answers = inquirer.prompt(finalQuestions)
+        if "analysisFile" in answers:
+            analysisFile = answers["analysisFile"]
+            outputs["analysisFile"] = path_join(*[BASE_SAVE_DIR, analysisFile])
+        
 
-            try:
-                outputs["K"] = int(answers["K"])
-            except TypeError:
-                pass
-            finally:
-                outputs["K"] = outputs.get("K", None)
-                if outputs["K"] == 0:
-                    outputs["K"] = None
+        if "numEpochs" in answers:
+            outputs["numEpochs"] = int(answers["numEpochs"])
+        if "batchSize" in answers:
+            outputs["batchSize"] = int(answers["batchSize"])
+        
+        if "featureSelection" in answers:
+            outputs["featureSelection"] = answers["featureSelection"]
 
-        elif answers["featureSelection"] == "F1 Scores":
-            questions = [
-                inquirer.Text('precision', message="precision", default=1.0)
-            ]
-            answers = inquirer.prompt(questions)
-            outputs["precision"] = float(answers["precision"])
+        fs = outputs["featureSelection"]
 
-    else:
-        outputs["savedModelFile"] = path_join(*[BASE_SAVE_DIR, savedModelFile])
+        if fs == "mRMR":
+            if "K" not in config:
+                questions = [inquirer.Text('K', message="K", default=10)]
+                answers = inquirer.prompt(questions)
+
+                try:
+                    outputs["K"] = int(answers["K"])
+                except TypeError:
+                    pass
+                finally:
+                    outputs["K"] = outputs.get("K", None)
+                    if outputs["K"] == 0:
+                        outputs["K"] = None
+            else:
+                outputs["K"] = config["K"]
+
+        elif fs == "F1 Scores":
+            if "precision" not in config:
+                questions = [inquirer.Text('precision', message="precision", default=1.0)]
+                answers = inquirer.prompt(questions)
+                outputs["precision"] = float(answers["precision"])
+            else:
+                outputs["precision"] = config["precision"]
 
     # We are always looking for the file to predict values for
     if analysisFile in files:
         files.remove(analysisFile)
+    
     questions = [
         inquirer.List('predictFile', message="File to try to predict the values.", choices=files),
     ]
@@ -168,31 +179,24 @@ def parseAnnArguments():
     predictFile = answers["predictFile"]
     outputs["predictFile"] = path_join(*[BASE_SAVE_DIR, predictFile])
 
-    questions = [
-        inquirer.List('compareFunction', message="Function used for evaluating team data.", choices=[x.name for x in CompareFunction]),
-    ]
-    answers = inquirer.prompt(questions)
-    outputs["compareFunction"] = [x for x in CompareFunction if x.name == answers["compareFunction"]][0]
+    cf = None
+    if config.get("compareFunction", None) is not None:
+        candidates = [
+            x.name for x in CompareFunction if x.name.lower() == config["compareFunction"].lower()
+        ]
+        if len(candidates) == 1:
+            cf = candidates[0]
 
-    return outputs
-
-
-def saveModel():
-    """Ask the user if they wish to save the model
-    """
-    questions = [
-        inquirer.List('saveModel', message="Would you like to save the model?", choices=["yes", "no"]),
-    ]
-    answers = inquirer.prompt(questions)
-    if answers["saveModel"] == "yes":
+    if cf is None:
         questions = [
-            inquirer.Text('modelName', message="What would you like to name the model?", default="nhl_model"),
+            inquirer.List('compareFunction', message="Function used for evaluating team data.", choices=[x.name for x in CompareFunction]),
         ]
         answers = inquirer.prompt(questions)
+        outputs["compareFunction"] = [x.name for x in CompareFunction if x.name == answers["compareFunction"]][0]
+    else:
+        outputs["compareFunction"] = cf
 
-        return answers['modelName']
-
-    return None
+    return outputs
 
 
 def findTodaysGames():
@@ -412,11 +416,11 @@ def createModel(analysisFile, featureSelection, **kwargs):
     logger.debug("fitting and training model")
     model.fit(dfTensor, outputTensor, epochs=kwargs['numEpochs'], batch_size=kwargs['batchSize'])
     _, accuracy = model.evaluate(dfTensor,  outputTensor)
+    logger.debug(f"model accuracy: {accuracy}")
 
-    # attempt to save the model    
-    modelName = saveModel()
-    if modelName is not None:
-        model.save(path_join(*[BASE_SAVE_DIR, modelName]))
+    # attempt to save the model
+    logger.debug(f"saving model as nhl_model, this will override the current model") 
+    model.save(path_join(*[BASE_SAVE_DIR, "nhl_model"]))
 
     return model
 
@@ -480,20 +484,33 @@ def prepareDataForPredictions(predictFile, comparisonFunction=CompareFunction.AV
     return None
 
 
-def execAnn():
+def execAnn(override=False):
     if not exists(BASE_SAVE_DIR):
         logger.debug(f"creating base directory {BASE_SAVE_DIR}")
         mkdir(BASE_SAVE_DIR)
 
-    # Ask for all user input
-    outputs = parseAnnArguments()
+    inputs = {}
+    if exists(CONFIG_FILE):
+        if override:
+            logger.warning(f"overriding config file {CONFIG_FILE}")
+            remove(CONFIG_FILE)
+        else:
+            with open(CONFIG_FILE, "rb") as jsonFile:
+                inputs = loads(jsonFile.read())
+
+    logger.debug(f"inputs\n{inputs}")
+    outputs = parseAnnArguments(inputs)
+
+    logger.debug(f"outputs\n{outputs}")
+    with open(CONFIG_FILE, "w") as jsonFile:
+        jsonFile.write(dumps(outputs, indent=2))
 
     model = None
     if "analysisFile" in outputs:
         model = createModel(**outputs)
-    elif "savedModelFile" in outputs:
-        logger.debug("loading saved model")
-        model = tf.keras.models.load_model(outputs["savedModelFile"])
+    elif "savedModel" in outputs:
+        logger.debug(f"loading saved model from {outputs['savedModel']}")
+        model = tf.keras.models.load_model(outputs["savedModel"])
 
     if model is None:
         logger.error("valid model not found")
