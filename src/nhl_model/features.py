@@ -13,7 +13,7 @@ def findFeaturesMRMR(dataset, outputs, K=None, **kwargs):
     using the mean of the relevance scores to find the features.
     """
     _k = K
-    if _k is None:
+    if _k is None or _k <= 0:
         _k = dataset.shape[1]
 
         if 0 >= _k > dataset.shape[1]:
@@ -21,7 +21,7 @@ def findFeaturesMRMR(dataset, outputs, K=None, **kwargs):
 
     selected_features, relevance, _ = mrmr_classif(X=dataset, y=outputs, K=_k, return_scores=True)
 
-    if K is not None:
+    if K is not None and K > 0:
         return selected_features
 
     # Find the number of values where the relevance is above the mean. These are NOT

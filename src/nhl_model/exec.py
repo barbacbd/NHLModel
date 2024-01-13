@@ -58,7 +58,7 @@ def main():
         generateDataset(args.version, args.startYear, args.endYear, validFiles=validFiles)
     elif args.execType == 'ann':
         execAnn(args.override)
-    elif args.execTpe == 'poisson':
+    elif args.execType == 'poisson':
         execPoisson(args.year)
 
 if __name__ == '__main__':

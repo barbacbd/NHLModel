@@ -396,15 +396,16 @@ def createModel(analysisFile, featureSelection, **kwargs):
     level = max([numLabels, 16])
     logger.info(f"Creating first layer = {level}")
     model.add(Dense(level, input_shape=(numLabels,), activation='relu'))    
-    while True:
+    while level > 0:
         level = int(sqrt(level))
         if level <= 1:
             # Looking for a single value 0 or 1 for the output
             logger.info(f"Creating final layer = 1")
             model.add(Dense(1, activation='sigmoid'))
-            break
-        logger.info(f"Creating next layer = {level}")
-        model.add(Dense(level, activation='sigmoid'))
+            level = 0
+        else:
+            logger.info(f"Creating next layer = {level}")
+            model.add(Dense(level, activation='sigmoid'))
 
     # create the model
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
