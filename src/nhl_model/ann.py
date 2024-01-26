@@ -20,6 +20,15 @@ from tensorflow.keras.layers import Dense
 from warnings import warn
 
 
+# Common Keys used throughout this file
+_PREDICTION_FILE_KEY = "predictFile"
+_COMPARE_FUNC_KEY = "compareFunction"
+_EPOCHS_KEY = "numEpochs"
+_BATCH_SIZE_KEY = "batchSize"
+_ANALYSIS_FILE_KEY = "analysisFile"
+_FEATURE_SELECTION_KEY = "featureSelection"
+
+
 CONFIG_FILE = path_join(*[BASE_SAVE_DIR, "nhl_model_config.json"])
 FEATURE_FILE = path_join(*[BASE_SAVE_DIR, "features.json"])
 OLD_DATA_DIR = path_join(*[dirname(abspath(__file__)), "support", "data", "nhl_data"])
@@ -67,6 +76,44 @@ def findFiles(version, startYear, endYear):
     return validFiles
 
 
+def _askForCommonData(config, files=[]):
+    """Ask for common data between several execution paths."""
+    _files = files
+    if not _files:
+        _files = [x for x in listdir(BASE_SAVE_DIR) if x.endswith(".xlsx")]
+
+    outputs = {}
+
+    questions = [
+        inquirer.List(_PREDICTION_FILE_KEY, message="File to try to predict the values.", 
+                      choices=_files),
+    ]
+    answers = inquirer.prompt(questions)
+    outputs[_PREDICTION_FILE_KEY] = path_join(*[BASE_SAVE_DIR, answers[_PREDICTION_FILE_KEY]])
+
+    cf = None
+    if config.get(_COMPARE_FUNC_KEY, None) is not None:
+        candidates = [
+            x.name for x in CompareFunction if x.name.lower() == config[_COMPARE_FUNC_KEY].lower()
+        ]
+        if len(candidates) == 1:
+            cf = candidates[0]
+
+    if cf is None:
+        questions = [
+            inquirer.List(_COMPARE_FUNC_KEY, message="Function used for evaluating team data.", 
+                          choices=[x.name for x in CompareFunction]),
+        ]
+        answers = inquirer.prompt(questions)
+        outputs[_COMPARE_FUNC_KEY] = [
+            x.name for x in CompareFunction if x.name == answers[_COMPARE_FUNC_KEY]][0]
+    else:
+        outputs[_COMPARE_FUNC_KEY] = cf
+
+
+    return outputs
+
+
 def parseAnnArguments(config):
     """Ask the user for input. This will determine if a new model is created or 
     a new/different one is created.
@@ -80,7 +127,8 @@ def parseAnnArguments(config):
         loadModel = "yes"
     else:
         questions = [
-            inquirer.List('loadModel', message="Would you like to use a saved model?", choices=["yes", "no"]),
+            inquirer.List('loadModel', message="Would you like to use a saved model?", 
+                          choices=["yes", "no"]),
         ]
         answers = inquirer.prompt(questions)
         loadModel = answers['loadModel']
@@ -100,49 +148,48 @@ def parseAnnArguments(config):
     # this way in the event that no model was selected continue processing
     if loadModel == "no":
         questions = {
-            "numEpochs": inquirer.Text(
-                'numEpochs', 
+            _EPOCHS_KEY: inquirer.Text(
+                _EPOCHS_KEY, 
                 message="How many epochs during training?", 
                 default=1000
             ),
-            "batchSize": inquirer.Text(
-                'batchSize', 
+            _BATCH_SIZE_KEY: inquirer.Text(
+                _BATCH_SIZE_KEY, 
                 message="Size of batches?", 
                 default=30
             ),
-            "analysisFile": inquirer.List(
-                'analysisFile', 
+            _ANALYSIS_FILE_KEY: inquirer.List(
+                _ANALYSIS_FILE_KEY, 
                 message="File used to train the data.", 
                 choices=files
             ),
-            "featureSelection" :inquirer.List(
-                'featureSelection', 
+            _FEATURE_SELECTION_KEY :inquirer.List(
+                _FEATURE_SELECTION_KEY, 
                 message='Feature selection method.', 
                 choices=list(FeatureSelectionData.keys())
             ),
         }
 
-        finalQuestions = [value for key, value in questions.items() if config.get(key, None) is None]
+        finalQuestions = [
+            value for key, value in questions.items() if config.get(key, None) is None
+        ]
         outputs.update({
             key: config[key] 
             for key, value in questions.items() if config.get(key, None) is not None
         })
 
         answers = inquirer.prompt(finalQuestions)
-        if "analysisFile" in answers:
-            analysisFile = answers["analysisFile"]
-            outputs["analysisFile"] = path_join(*[BASE_SAVE_DIR, analysisFile])
-        
+        if _ANALYSIS_FILE_KEY in answers:
+            analysisFile = answers[_ANALYSIS_FILE_KEY]
+            outputs[_ANALYSIS_FILE_KEY] = path_join(*[BASE_SAVE_DIR, analysisFile])
+        if _EPOCHS_KEY in answers:
+            outputs[_EPOCHS_KEY] = int(answers[_EPOCHS_KEY])
+        if _BATCH_SIZE_KEY in answers:
+            outputs[_BATCH_SIZE_KEY] = int(answers[_BATCH_SIZE_KEY])
+        if _FEATURE_SELECTION_KEY in answers:
+            outputs[_FEATURE_SELECTION_KEY] = answers[_FEATURE_SELECTION_KEY]
 
-        if "numEpochs" in answers:
-            outputs["numEpochs"] = int(answers["numEpochs"])
-        if "batchSize" in answers:
-            outputs["batchSize"] = int(answers["batchSize"])
-        
-        if "featureSelection" in answers:
-            outputs["featureSelection"] = answers["featureSelection"]
-
-        fs = outputs["featureSelection"]
+        fs = outputs[_FEATURE_SELECTION_KEY]
 
         if fs == "mRMR":
             if "K" not in config:
@@ -171,39 +218,29 @@ def parseAnnArguments(config):
     # We are always looking for the file to predict values for
     if analysisFile in files:
         files.remove(analysisFile)
-    
-    questions = [
-        inquirer.List('predictFile', message="File to try to predict the values.", choices=files),
-    ]
-    answers = inquirer.prompt(questions)
-    predictFile = answers["predictFile"]
-    outputs["predictFile"] = path_join(*[BASE_SAVE_DIR, predictFile])
 
-    cf = None
-    if config.get("compareFunction", None) is not None:
-        candidates = [
-            x.name for x in CompareFunction if x.name.lower() == config["compareFunction"].lower()
-        ]
-        if len(candidates) == 1:
-            cf = candidates[0]
+    # grab any common data
+    commonData = _askForCommonData(config=config, files=files)
 
-    if cf is None:
-        questions = [
-            inquirer.List('compareFunction', message="Function used for evaluating team data.", choices=[x.name for x in CompareFunction]),
-        ]
-        answers = inquirer.prompt(questions)
-        outputs["compareFunction"] = [x.name for x in CompareFunction if x.name == answers["compareFunction"]][0]
-    else:
-        outputs["compareFunction"] = cf
+    # update with common data
+    outputs.update(commonData)
 
     return outputs
 
 
 def findTodaysGames():
+    todaysDate = datetime.now()
+    return findGamesByDate(
+        todaysDate.day,
+        todaysDate.month,
+        todaysDate.year
+    )
+
+def findGamesByDate(day, month, year):
     """Query the API to find the games that will be played today.
     """
-    todaysDate = datetime.now()
-    data = f'https://api-web.nhle.com/v1/score/{todaysDate.strftime("%Y-%m-%d")}'
+    searchDate = datetime(year, month, day)
+    data = f'https://api-web.nhle.com/v1/score/{searchDate.strftime("%Y-%m-%d")}'
 
     try:
         todaysGameData = requests.get(data).json()
@@ -212,7 +249,7 @@ def findTodaysGames():
         return None
 
     if "games" not in todaysGameData or len(todaysGameData["games"]) == 0:
-        logger.error(f"no games foud for today {todaysDate}")
+        logger.error(f"no games foud for today {searchDate}")
         return None
 
     return todaysGameData
@@ -415,7 +452,7 @@ def createModel(analysisFile, featureSelection, **kwargs):
     outputTensor = tf.convert_to_tensor(trainOutput.to_numpy())
 
     logger.debug("fitting and training model")
-    model.fit(dfTensor, outputTensor, epochs=kwargs['numEpochs'], batch_size=kwargs['batchSize'])
+    model.fit(dfTensor, outputTensor, epochs=kwargs[_EPOCHS_KEY], batch_size=kwargs[_BATCH_SIZE_KEY])
     _, accuracy = model.evaluate(dfTensor,  outputTensor)
     logger.debug(f"model accuracy: {accuracy}")
 
@@ -426,7 +463,7 @@ def createModel(analysisFile, featureSelection, **kwargs):
     return model
 
 
-def prepareDataForPredictions(predictFile, comparisonFunction=CompareFunction.AVERAGES):
+def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year):
     """Prepare the data for predicting the outcomes of the games that will be played today.
     
     :param predictFile: Filename of the all of the data to be used as input for predictions.
@@ -444,7 +481,7 @@ def prepareDataForPredictions(predictFile, comparisonFunction=CompareFunction.AV
     predictDF = pd.read_excel(predictFile)
     predictDF, actualOutput = correctData(predictDF)
 
-    todaysGameData = findTodaysGames()
+    todaysGameData = findGamesByDate(day, month, year)
     if not todaysGameData:
         logger.error("failed to find todays game data")
         return None
@@ -485,11 +522,7 @@ def prepareDataForPredictions(predictFile, comparisonFunction=CompareFunction.AV
     return None
 
 
-def execAnn(override=False):
-    if not exists(BASE_SAVE_DIR):
-        logger.debug(f"creating base directory {BASE_SAVE_DIR}")
-        mkdir(BASE_SAVE_DIR)
-
+def _loadConfig(override=False):
     inputs = {}
     if exists(CONFIG_FILE):
         if override:
@@ -500,23 +533,21 @@ def execAnn(override=False):
                 inputs = loads(jsonFile.read())
 
     logger.debug(f"inputs\n{inputs}")
-    outputs = parseAnnArguments(inputs)
+    return inputs
 
-    logger.debug(f"outputs\n{outputs}")
-    with open(CONFIG_FILE, "w") as jsonFile:
-        jsonFile.write(dumps(outputs, indent=2))
 
-    model = None
-    if "analysisFile" in outputs:
-        model = createModel(**outputs)
-    elif "savedModel" in outputs:
-        logger.debug(f"loading saved model from {outputs['savedModel']}")
-        model = tf.keras.models.load_model(outputs["savedModel"])
+def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
+    """Execute the model using the values used for prediction.
 
-    if model is None:
-        logger.error("valid model not found")
-        return
-
+    :param model: Model loaded using tensorflow.
+    :param predictionFile: Filepath containing the data used for predicting the outcomes of the
+    games played on (day/month/year). This is typically the data generated using `generate` from
+    the current season. 
+    :param comparisonFuncion: Type of function used to compare records.
+    :param day: Day of the month for prediction.
+    :param month: Month of the year for prediction.
+    :param year: Year used for predicting games on a specific date.
+    """
     if not exists(FEATURE_FILE):
         logger.critical(f"failed to find features file {FEATURE_FILE}")
         return
@@ -532,9 +563,11 @@ def execAnn(override=False):
         return
 
     preparedDF = prepareDataForPredictions(
-        outputs["predictFile"], 
-        comparisonFunction=CompareFunction.DIRECT
-        # comparisonFunction=CompareFunction.DIRECT
+        predictFile=predictionFile, 
+        comparisonFunction=comparisonFunction,
+        day=day,
+        month=month,
+        year=year
     )
 
     if preparedDF is None:
@@ -545,7 +578,6 @@ def execAnn(override=False):
         logger.debug("creating future.xlsx")
         preparedDF.to_excel(path_join(*[BASE_SAVE_DIR, "future.xlsx"]))
 
-
     # ensure that only the selected feature found above are present in the dataframe
     preparedDF = preparedDF[features]
 
@@ -554,7 +586,7 @@ def execAnn(override=False):
 
     # extract metadata for comparison
     teams = _getTeamNames()
-    todaysGameData = findTodaysGames()
+    todaysGameData = findGamesByDate(day, month, year)
 
     outputForDF = []
     for index, game in enumerate(todaysGameData["games"]):
@@ -575,3 +607,64 @@ def execAnn(override=False):
         filename = f'{todaysDate.strftime("%Y-%m-%d")}-predictions.xlsx'
         filename = path_join(*[BASE_SAVE_DIR, filename])
         pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
+
+
+def execAnn(override=False):
+    if not exists(BASE_SAVE_DIR):
+        logger.debug(f"creating base directory {BASE_SAVE_DIR}")
+        mkdir(BASE_SAVE_DIR)
+
+    inputs = _loadConfig(override=override)
+    outputs = parseAnnArguments(inputs)
+
+    logger.debug(f"outputs\n{outputs}")
+    with open(CONFIG_FILE, "w") as jsonFile:
+        jsonFile.write(dumps(outputs, indent=2))
+
+    model = None
+    if _ANALYSIS_FILE_KEY in outputs:
+        model = createModel(**outputs)
+    elif "savedModel" in outputs:
+        logger.debug(f"loading saved model from {outputs['savedModel']}")
+        model = tf.keras.models.load_model(outputs["savedModel"])
+
+    if model is None:
+        logger.error("valid model not found")
+        return
+
+    todaysDate = datetime.now()
+
+    compareFunc = [x for x in CompareFunction if x.name == outputs[_COMPARE_FUNC_KEY]][0]
+
+    _execAnnCommon(
+        model, 
+        outputs[_PREDICTION_FILE_KEY], 
+        compareFunc, 
+        todaysDate.day, 
+        todaysDate.month, 
+        todaysDate.year
+    )
+
+
+def execAnnSpecificDate(day, month, year):
+    inputs = _loadConfig(override=False)
+    outputs = _askForCommonData(inputs)
+
+    # load the model
+    expectedModelPath = path_join(*[BASE_SAVE_DIR, "nhl_model"])
+    if not exists(expectedModelPath):
+        logger.critical(f"failed to find model {expectedModelPath}")
+        return
+    
+    model = tf.keras.models.load_model(expectedModelPath)
+
+    compareFunc = [x for x in CompareFunction if x.name == outputs[_COMPARE_FUNC_KEY]][0]
+
+    _execAnnCommon(
+        model, 
+        outputs[_PREDICTION_FILE_KEY], 
+        compareFunc, 
+        int(day), 
+        int(month), 
+        int(year)
+    )

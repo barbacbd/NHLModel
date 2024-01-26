@@ -1,7 +1,7 @@
 import argparse
 from datetime import datetime
 from logging import getLogger, basicConfig
-from nhl_model.ann import execAnn, findFiles
+from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate
 from nhl_model.dataset import generateDataset
 from nhl_model.poisson import execPoisson
 
@@ -45,6 +45,20 @@ def main():
     poissonSubParser = mainSubParsers.add_parser('poisson', help='Poisson Distribution')
     poissonSubParser.add_argument('-y', '--year', help='Year for the start of the season', default=datetime.now().year)
 
+    # This form of execution asks for a specific date day-month-year to run the model against.
+    # This will NOT [re]generate the model, it will only execute if the model is already
+    # present in /tmp/nhl_model/nhl_model
+    dateSubParser = mainSubParsers.add_parser('date', help='Predict the outcomes for a specific date')
+    dateSubParser.add_argument(
+        '-d', '--day', help='Day of the month for prediction', default=datetime.now().day
+    )
+    dateSubParser.add_argument(
+        '-m', '--month', help='Month of the year for prediction', default=datetime.now().month
+    )
+    dateSubParser.add_argument(
+        '-y', '--year', help='Year for prediction', default=datetime.now().year
+    )
+
     args = parser.parse_args()
 
     # set the logger
@@ -60,6 +74,8 @@ def main():
         execAnn(args.override)
     elif args.execType == 'poisson':
         execPoisson(args.year)
+    elif args.execType == 'date':
+        execAnnSpecificDate(args.day, args.month, args.year)
 
 if __name__ == '__main__':
     main()
