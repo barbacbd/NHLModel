@@ -1,0 +1,9 @@
+{
+    "analysisFile": "file-for-analysis.xlsx",
+    "numEpochs": 1000,
+    "batchSize": 30,
+    "featureSelection": "mRMR",
+    "K": null,
+    "predictFile": "file-for-predictions.xlsx",
+    "compareFunction": "DIRECT"
+  }
