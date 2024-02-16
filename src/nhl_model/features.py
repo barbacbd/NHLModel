@@ -1,5 +1,7 @@
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+# pylint: disable=unused-argument
 from mrmr import mrmr_classif
-import pandas as pd
 from sklearn.metrics import f1_score
 from sklearn.ensemble import RandomForestClassifier
 
@@ -47,7 +49,7 @@ def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
 
     # Create a deep copy so that changes are not reflected to the original
     # dataframe.
-    df = dataset.copy(True)    
+    df = dataset.copy(True)
 
     forest = RandomForestClassifier(n_jobs=1, random_state=42)
     forest.fit(df, outputs)
@@ -74,7 +76,7 @@ def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
     # number of features that should be used.
     numFeaturesToUse = 0
 
-    # F1 Values should drop as the number of features is reduced eventually leading 
+    # F1 Values should drop as the number of features is reduced eventually leading
     # towards 0, reverse this list so that the smallest values are first.
     f1Scores.reverse()
 
@@ -85,4 +87,3 @@ def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
         numFeaturesToUse += 1
 
     return feats[-numFeaturesToUse].tolist()
-

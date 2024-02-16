@@ -1,23 +1,39 @@
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=import-error
+# pylint: disable=no-member
+# pylint: disable=too-many-arguments
+# pylint: disable=no-name-in-module
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
+# pylint: disable=bare-except
+# pylint: disable=dangerous-default-value
+# pylint: disable=consider-using-enumerate
+# pylint: disable=missing-timeout
+# pylint: disable=too-many-locals
+# pylint: disable=unspecified-encoding
+# pylint: disable=f-string-without-interpolation
 from datetime import datetime
 from enum import Enum
-import inquirer
 from json import dumps, loads
 from logging import getLogger
 from math import sqrt
-from nhl_model.dataset import pullDatasetNewAPI, BASE_SAVE_DIR
-from nhl_model.enums import CompareFunction, Version
-from nhl_model.features import (
-    findFeaturesMRMR, 
-    findFeaturesF1Scores
-)
 from os import listdir, walk, mkdir, remove
 from os.path import dirname, abspath, join as path_join, exists
+from warnings import warn
+import inquirer
 import pandas as pd
 import requests
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from warnings import warn
+from nhl_model.dataset import pullDatasetNewAPI, BASE_SAVE_DIR
+from nhl_model.enums import CompareFunction, Version
+from nhl_model.features import (
+    findFeaturesMRMR,
+    findFeaturesF1Scores
+)
 
 
 # Common Keys used throughout this file
@@ -47,17 +63,16 @@ def findFiles(version, startYear, endYear):
     """Parse the arguements for the program by reading in the static file that
     contains the basic statistics for all teams and all seasons.
     """
-    # correct the data 
+    # correct the data
     startYear, endYear = min([startYear, endYear]), max([startYear, endYear])
 
     validFiles = []
     if version == Version.OLD.value:
         warn(f"search {OLD_DATA_DIR} for valid files, please select the 'new' version instead")
-
         # NOTE: if the user wants to use the original version of the API, the
         # data must already exist. The API can no longer be reached. For this particular
         # task, the data is expected to exist in the `directory` location above.
-        for root, dirs, files in walk(OLD_DATA_DIR):
+        for root, _, files in walk(OLD_DATA_DIR):
             sp = root.split("/")
             try:
                 if startYear <= int(sp[len(sp)-1]) <= endYear:
@@ -85,7 +100,7 @@ def _askForCommonData(config, files=[]):
     outputs = {}
 
     questions = [
-        inquirer.List(_PREDICTION_FILE_KEY, message="File to try to predict the values.", 
+        inquirer.List(_PREDICTION_FILE_KEY, message="File to try to predict the values.",
                       choices=_files),
     ]
     answers = inquirer.prompt(questions)
@@ -101,7 +116,7 @@ def _askForCommonData(config, files=[]):
 
     if cf is None:
         questions = [
-            inquirer.List(_COMPARE_FUNC_KEY, message="Function used for evaluating team data.", 
+            inquirer.List(_COMPARE_FUNC_KEY, message="Function used for evaluating team data.",
                           choices=[x.name for x in CompareFunction]),
         ]
         answers = inquirer.prompt(questions)
@@ -109,7 +124,6 @@ def _askForCommonData(config, files=[]):
             x.name for x in CompareFunction if x.name == answers[_COMPARE_FUNC_KEY]][0]
     else:
         outputs[_COMPARE_FUNC_KEY] = cf
-
 
     return outputs
 
@@ -127,7 +141,7 @@ def parseAnnArguments(config):
         loadModel = "yes"
     else:
         questions = [
-            inquirer.List('loadModel', message="Would you like to use a saved model?", 
+            inquirer.List('loadModel', message="Would you like to use a saved model?",
                           choices=["yes", "no"]),
         ]
         answers = inquirer.prompt(questions)
@@ -149,23 +163,23 @@ def parseAnnArguments(config):
     if loadModel == "no":
         questions = {
             _EPOCHS_KEY: inquirer.Text(
-                _EPOCHS_KEY, 
-                message="How many epochs during training?", 
+                _EPOCHS_KEY,
+                message="How many epochs during training?",
                 default=1000
             ),
             _BATCH_SIZE_KEY: inquirer.Text(
-                _BATCH_SIZE_KEY, 
-                message="Size of batches?", 
+                _BATCH_SIZE_KEY,
+                message="Size of batches?",
                 default=30
             ),
             _ANALYSIS_FILE_KEY: inquirer.List(
-                _ANALYSIS_FILE_KEY, 
-                message="File used to train the data.", 
+                _ANALYSIS_FILE_KEY,
+                message="File used to train the data.",
                 choices=files
             ),
             _FEATURE_SELECTION_KEY :inquirer.List(
-                _FEATURE_SELECTION_KEY, 
-                message='Feature selection method.', 
+                _FEATURE_SELECTION_KEY,
+                message='Feature selection method.',
                 choices=list(FeatureSelectionData.keys())
             ),
         }
@@ -174,7 +188,7 @@ def parseAnnArguments(config):
             value for key, value in questions.items() if config.get(key, None) is None
         ]
         outputs.update({
-            key: config[key] 
+            key: config[key]
             for key, value in questions.items() if config.get(key, None) is not None
         })
 
@@ -229,6 +243,7 @@ def parseAnnArguments(config):
 
 
 def findTodaysGames():
+    '''Extension of findGamesByDate to automatically use todays date.'''
     todaysDate = datetime.now()
     return findGamesByDate(
         todaysDate.day,
@@ -275,8 +290,6 @@ def _createAverages(df):
     logger.debug("creating the averages dataframe")
     teamIds = list(set(df["htTeamid"].tolist()))
 
-    # logger.debug(f"Team IDS: {teamIds}")
-
     data = []
     for teamId in teamIds:
         homeTeamRecords = df.loc[(df['htTeamid']==teamId)]
@@ -291,13 +304,14 @@ def _createAverages(df):
         awayTeamRecords['atTeamid'] = teamId
         data.append(awayTeamRecords)
 
-    # Now we have all of the average data from the current season, use this data to predict the next games 
+    # Now we have all of the average data from the current season,
+    # use this data to predict the next games
     averagesDF = pd.DataFrame(data, columns=df.columns)
 
     if not __debug__:
         logger.debug("creating averages.xlsx")
         averagesDF.to_excel(path_join(*[BASE_SAVE_DIR, "averages.xlsx"]))
-    
+
     return averagesDF
 
 
@@ -312,13 +326,13 @@ def _createHeadToHead(df):
         The data will be combined into a single record and returned.
         """
         hr = avgs.loc[(avgs['htTeamid']==homeTeamId)]
-        ar = avgs.loc[(avgs['atTeamid']==awayTeamId)]    
+        ar = avgs.loc[(avgs['atTeamid']==awayTeamId)]
 
         idx = hr.index[0]
         for col in ar.columns:
             if col.startswith("at"):
                 hr.at[idx, col] = ar.iloc[0][col]
-        
+
         return hr
 
 
@@ -331,7 +345,7 @@ def _createHeadToHead(df):
     data = []
     for i in range(len(teamIds)):
         firstTeam = teamIds[i]
-        
+
         for j in range(i, len(teamIds)):
             secondTeam = teamIds[j]
 
@@ -366,7 +380,7 @@ def _createHeadToHead(df):
     if not __debug__:
         logger.debug("creating head_to_head.xlsx")
         h2hDF.to_excel(path_join(*[BASE_SAVE_DIR, "head_to_head.xlsx"]))
-    
+
     return h2hDF
 
 
@@ -380,7 +394,7 @@ def correctData(df, droppable=[]):
     # value or a training data outcome
     output = df["winner"]
 
-    labelsToRemove = ["atTeamname", "atTricode", "htTeamname", "htTricode"] + droppable 
+    labelsToRemove = ["atTeamname", "atTricode", "htTeamname", "htTricode"] + droppable
 
     # Drop the output from the Dataframe, leaving the only data left as
     # the dataset to train.
@@ -427,12 +441,12 @@ def createModel(analysisFile, featureSelection, **kwargs):
 
     model = Sequential()
     # Create a model for a neural network with 3 layers
-    # According to a source online, ReLU activation function is best for layers 
+    # According to a source online, ReLU activation function is best for layers
     # except the output layer, that layer should use Sigmoid. This is the case for
     # performance reasons.
     level = max([numLabels, 16])
     logger.info(f"Creating first layer = {level}")
-    model.add(Dense(level, input_shape=(numLabels,), activation='relu'))    
+    model.add(Dense(level, input_shape=(numLabels,), activation='relu'))
     while level > 0:
         level = int(sqrt(level))
         if level <= 1:
@@ -452,12 +466,13 @@ def createModel(analysisFile, featureSelection, **kwargs):
     outputTensor = tf.convert_to_tensor(trainOutput.to_numpy())
 
     logger.debug("fitting and training model")
-    model.fit(dfTensor, outputTensor, epochs=kwargs[_EPOCHS_KEY], batch_size=kwargs[_BATCH_SIZE_KEY])
+    model.fit(dfTensor, outputTensor, epochs=kwargs[_EPOCHS_KEY],
+              batch_size=kwargs[_BATCH_SIZE_KEY])
     _, accuracy = model.evaluate(dfTensor,  outputTensor)
     logger.debug(f"model accuracy: {accuracy}")
 
     # attempt to save the model
-    logger.debug(f"saving model as nhl_model, this will override the current model") 
+    logger.debug(f"saving model as nhl_model, this will override the current model")
     model.save(path_join(*[BASE_SAVE_DIR, "nhl_model"]))
 
     return model
@@ -477,9 +492,9 @@ def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year)
     :return: Dataframe containing records for the home and away teams that will play today.
     """
     # the file to compare predicted vs actual data to will always be present
-    # the model has been loaded/created 
+    # the model has been loaded/created
     predictDF = pd.read_excel(predictFile)
-    predictDF, actualOutput = correctData(predictDF)
+    predictDF, _ = correctData(predictDF)
 
     todaysGameData = findGamesByDate(day, month, year)
     if not todaysGameData:
@@ -491,9 +506,13 @@ def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year)
 
         futrData = []
         for game in todaysGameData["games"]:
-            logger.debug(f"Creating data for today: home = {game['homeTeam']['id']}, away = {game['awayTeam']['id']}")
+            homeTeamId = game['homeTeam']['id']
+            awayTeamId = game['awayTeam']['id']
+            logger.debug(
+                f"Creating data for today: home = {homeTeamId}, away = {awayTeamId}"
+            )
             htRecord = dataPointDF.loc[(dataPointDF['htTeamid']==game['homeTeam']['id'])]
-            atRecord = dataPointDF.loc[(dataPointDF['atTeamid']==game['awayTeam']['id'])]    
+            atRecord = dataPointDF.loc[(dataPointDF['atTeamid']==game['awayTeam']['id'])]
 
             idx = htRecord.index[0]
             for col in atRecord.columns:
@@ -501,28 +520,34 @@ def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year)
                     htRecord.at[idx, col] = atRecord.iloc[0][col]
 
             futrData.append(htRecord)
-        
+
         return pd.concat(futrData)
 
-    elif comparisonFunction == CompareFunction.DIRECT:
+    if comparisonFunction == CompareFunction.DIRECT:
         dataPointDF = _createHeadToHead(predictDF)
 
         futrData = []
         for game in todaysGameData["games"]:
-            logger.debug(f"Creating data for today: home = {game['homeTeam']['id']}, away = {game['awayTeam']['id']}")
-            record = dataPointDF.loc[(dataPointDF['htTeamid']==game['homeTeam']['id']) & (dataPointDF['atTeamid']==game['awayTeam']['id'])]
+            homeTeamId = game['homeTeam']['id']
+            awayTeamId = game['awayTeam']['id']
+            logger.debug(f"Creating data for today: home = {homeTeamId}, away = {awayTeamId}")
+            record = dataPointDF.loc[
+                (dataPointDF['htTeamid']==homeTeamId) & (dataPointDF['atTeamid']==awayTeamId)
+            ]
             futrData.append(record)
-        
+
         return pd.concat(futrData)
 
-    else:
-        _compareStr = comparisonFunction.value if isinstance(comparisonFunction, Enum) else comparisonFunction
-        logger.error(f"failed to find the comparison function {_compareStr}")
-
+    _compareStr = comparisonFunction.value if isinstance(comparisonFunction, Enum) \
+        else comparisonFunction
+    logger.error(f"failed to find the comparison function {_compareStr}")
     return None
 
 
 def _loadConfig(override=False):
+    '''Load the model configuration parameters. When override is true,
+    the data is skipped.
+    '''
     inputs = {}
     if exists(CONFIG_FILE):
         if override:
@@ -563,7 +588,7 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         return
 
     preparedDF = prepareDataForPredictions(
-        predictFile=predictionFile, 
+        predictFile=predictionFile,
         comparisonFunction=comparisonFunction,
         day=day,
         month=month,
@@ -600,7 +625,9 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
             "predictedWinner": predictedWinner
         })
 
-        print(f"home = {homeTeam:<30} away = {awayTeam:<30} predicted winner = {predictedWinner:<30}")
+        print(
+            f"home = {homeTeam:<30} away = {awayTeam:<30} predicted winner = {predictedWinner:<30}"
+        )
 
     if outputForDF:
         todaysDate = datetime.now()
@@ -610,6 +637,7 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
 
 
 def execAnn(override=False):
+    '''main execution point for the artificial neural network.'''
     if not exists(BASE_SAVE_DIR):
         logger.debug(f"creating base directory {BASE_SAVE_DIR}")
         mkdir(BASE_SAVE_DIR)
@@ -637,16 +665,17 @@ def execAnn(override=False):
     compareFunc = [x for x in CompareFunction if x.name == outputs[_COMPARE_FUNC_KEY]][0]
 
     _execAnnCommon(
-        model, 
-        outputs[_PREDICTION_FILE_KEY], 
-        compareFunc, 
-        todaysDate.day, 
-        todaysDate.month, 
+        model,
+        outputs[_PREDICTION_FILE_KEY],
+        compareFunc,
+        todaysDate.day,
+        todaysDate.month,
         todaysDate.year
     )
 
 
 def execAnnSpecificDate(day, month, year):
+    '''Execute the articial neural network with a specific date to analze.'''
     inputs = _loadConfig(override=False)
     outputs = _askForCommonData(inputs)
 
@@ -655,16 +684,16 @@ def execAnnSpecificDate(day, month, year):
     if not exists(expectedModelPath):
         logger.critical(f"failed to find model {expectedModelPath}")
         return
-    
+
     model = tf.keras.models.load_model(expectedModelPath)
 
     compareFunc = [x for x in CompareFunction if x.name == outputs[_COMPARE_FUNC_KEY]][0]
 
     _execAnnCommon(
-        model, 
-        outputs[_PREDICTION_FILE_KEY], 
-        compareFunc, 
-        int(day), 
-        int(month), 
+        model,
+        outputs[_PREDICTION_FILE_KEY],
+        compareFunc,
+        int(day),
+        int(month),
         int(year)
     )

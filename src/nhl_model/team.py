@@ -1,12 +1,16 @@
-from nhl_model.enums import TeamSide
-from nhl_model.event import EventType
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
 from statistics import mean
+from nhl_model.event import EventType
 
 
 SECONDS_PER_PERIOD = 1200  # 20 * 60
 
 
 class Team:
+    '''Team contains all of the basic team information.'''
+
+    # pylint: disable=too-few-public-methods
 
     __slots__ = [
         "name",
@@ -21,6 +25,7 @@ class Team:
         self._setFromJson(jsonData)
 
     def _setFromJson(self, jsonData):
+        '''Fill the instance from a valid json dictionary.'''
         if not isinstance(jsonData, dict):
             return
 
@@ -36,6 +41,9 @@ class Team:
 
     @property
     def json(self):
+        '''Return a dictionary containing valid json data that
+        represents this instance.
+        '''
         return  {
             attr: getattr(self, attr)
             for attr in Team.__slots__
@@ -43,6 +51,9 @@ class Team:
 
 
 def parseTimeMMSS(timeStr):
+    '''Parse the time into minutes and seconds. The intention is to
+    split the time that events occur during an NHL game.
+    '''
     minutes, seconds = map(int, timeStr.split(":"))
     return (minutes*60) + seconds
 
@@ -52,31 +63,40 @@ class TeamStats:
     """The team stats class contains the statistics for a team. The stats are
     valid for a single season.
     """
-    
+
+    # pylint: disable=too-many-public-methods
+    # pylint: disable=too-many-locals
+
     def __init__(self, teamId=None, teamName=None):
         self.teamId = teamId
         self.name = teamName
-            
+
         # The game records is a list of dictionaries where
         # The keys are the names of the teams, where one should
         # match the team of this instance
         self.gameRecords = []
-    
+
         self._awayEvents = {}
         self._homeEvents = {}
 
     def _generateInternalId(self):
+        '''Generate an ID to attach to an event.'''
         return len(self._awayEvents) + len(self._homeEvents) + 1
 
     def addAwayEvent(self, event):
+        '''Add an event that corresponds to actions by the away team.'''
         internalEventId = self._generateInternalId()
         self._awayEvents[internalEventId] = event
 
     def addHomeEvent(self, event):
+        '''Add an event that corresponds to actions by the home team.'''
         internalEventId = self._generateInternalId()
         self._homeEvents[internalEventId] = event
 
     def _correctNumEventsIncluded(self, maxIncludedRecords, home=True, away=False):
+        '''Correct the data to include only events that are required for the 
+        calculations that are run below. See individual functions for exact usage.
+        '''
         if maxIncludedRecords <= 0:
             return 0
 
@@ -88,31 +108,34 @@ class TeamStats:
 
         if maxIncludedRecords > total:
             return total
-        
+
         return maxIncludedRecords
 
 
     def _isolateGames(self, home, away, reverse=True):
+        '''Find only the games that are necessary. See individual functions for
+        exact usage.
+        '''
         games = {}
         if home:
             games.update(self._homeEvents)
         if away:
             games.update(self._awayEvents)
-        
+
         if reverse:
             # sort based on the entry number (essentially the game played), then reverse
             # the list to get the most recent games first
             return dict(reversed(games.items()))
-        else:
-            return dict(sorted(games.items()))
-    
+        return dict(sorted(games.items()))
+
 
     def _isolateEvents(self, game_num, game, against):
-        # determine the list of events that should be searched for the game
-        # Home events are used when the game number exists in the home games and 
-        # we are not looking for goals against, or the game number is in away games
-        # and we are looking for goals against.
-        # The opposite is true for away events.
+        '''Determine the list of events that should be searched for the game
+        Home events are used when the game number exists in the home games and 
+        we are not looking for goals against, or the game number is in away games
+        and we are looking for goals against.
+        The opposite is true for away events.
+        '''
         if (game_num in self._awayEvents and not against) or \
             (game_num in self._homeEvents and against):
             return game.awayTeamEvents
@@ -120,6 +143,7 @@ class TeamStats:
 
 
     def _averageTimeToGoal(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Get the average number of seconds between goals scored.'''
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -135,11 +159,11 @@ class TeamStats:
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
                     period = event.about.period - 1
-                    times.append((period * SECONDS_PER_PERIOD) + parseTimeMMSS(event.about.periodTime))
+                    times.append((period*SECONDS_PER_PERIOD)+parseTimeMMSS(event.about.periodTime))
                     foundGoal = True
                     break
-                            
-            # during a game in which the team did not score, 
+
+            # during a game in which the team did not score,
             # add the regulation time of the game
             if not foundGoal:
                 times.append(3 * SECONDS_PER_PERIOD)
@@ -147,7 +171,7 @@ class TeamStats:
             # found the max number of events
             if len(times) >= numEvents:
                 break
-    
+
         # make sure that the number of events matches the expected
         assert len(times) == numEvents
 
@@ -155,48 +179,55 @@ class TeamStats:
 
 
     def avgTimeToFirstGoalScored(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team scored (includes home and away games). 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team scored (includes home and away games). 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, True, True, False)
 
 
     def avgTimeToFirstGoalScoredHome(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team scored during home games. 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team scored during home games. 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, True, False, False)
 
 
     def avgTimeToFirstGoalScoredAway(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team scored during away games. 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team scored during away games. 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, False, True, False)
 
 
     def avgTimeToFirstGoalAgainst(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team lets in (includes home and away games). 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team lets in (includes home and away games). 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, True, True, True)
 
 
     def avgTimeToFirstGoalAgainstHome(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team lets in for home games. 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team lets in for home games. 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, True, False, True)
-    
+
 
     def avgTimeToFirstGoalAgainstAway(self, maxIncludedRecords=None):
-        # calculate the average time from the start of the game
-        # until the first goal this team lets in for away games. 
-        # The value in SECONDS is returned
+        '''Calculate the average time from the start of the game
+        until the first goal this team lets in for away games. 
+        The value in SECONDS is returned.
+        '''
         return self._averageTimeToGoal(maxIncludedRecords, False, True, True)
 
 
     def _goalsScored(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Get the number of goals scored by the teams.'''
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -212,14 +243,14 @@ class TeamStats:
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
                     goalsInGame += 1
-            
+
             # stow the number of goals in this game
             goals.append(goalsInGame)
 
             # found the max number of events
             if len(goals) >= numEvents:
                 break
-    
+
         # make sure that the number of events matches the expected
         assert len(goals) == numEvents
 
@@ -227,77 +258,89 @@ class TeamStats:
 
 
     def goalsScoredHomeGames(self, maxIncludedRecords=None):
-        # Find the number of goals for each home game. This will find a list
-        # of values (one for each home game). 
+        '''Find the number of goals for each home game. This will find a list
+        of values (one for each home game).
+        '''
         return self._goalsScored(maxIncludedRecords, True, False, False)
 
 
     def goalsScoredAwayGames(self, maxIncludedRecords=None):
-        # Find the number of goals for each away game. This will find a list
-        # of values (one for each away game). 
+        '''Find the number of goals for each away game. This will find a list
+        of values (one for each away game).
+        '''
         return self._goalsScored(maxIncludedRecords, False, True, False)
 
 
     def goalsScoredAgainstHomeGames(self, maxIncludedRecords=None):
-        # Find the number of goals scored against for each home game. This will find a list
-        # of values (one for each home game). 
+        '''Find the number of goals scored against for each home game. This will find a list
+        of values (one for each home game).
+        '''
         return self._goalsScored(maxIncludedRecords, True, False, True)
 
 
     def goalsScoredAgainstAwayGames(self, maxIncludedRecords=None):
-        # Find the number of goals scored against for each away game. This will find a list
-        # of values (one for each away game). 
+        '''Find the number of goals scored against for each away game. This will find a list
+        of values (one for each away game).
+        '''
         return self._goalsScored(maxIncludedRecords, False, True, True)
 
 
     def _numGoalsScored(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Get the average number of goals scored for a team.'''
         goals = self._goalsScored(maxIncludedRecords, home, away, against)
         return round(mean(goals), 2)
 
 
     def avgGoalsScoredPerGame(self, maxIncludedRecords=None):
-        # Find the total number of goals scored for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value (includes home and away games).
+        '''Find the total number of goals scored for all games where
+        the team matches the name of this instance. Take the average
+        of that value (includes home and away games).
+        '''
         return self._numGoalsScored(maxIncludedRecords, True, True, False)
 
 
     def avgGoalsScoredPerGameHome(self, maxIncludedRecords=None):
-        # Find the total number of goals scored for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value. This is only for Home games.
+        '''Find the total number of goals scored for all games where
+        the team matches the name of this instance. Take the average
+        of that value. This is only for Home games.
+        '''
         return self._numGoalsScored(maxIncludedRecords, True, False, False)
 
 
     def avgGoalsScoredPerGameAway(self, maxIncludedRecords=None):
-        # Find the total number of goals scored for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value. This is only for Away games.
+        '''Find the total number of goals scored for all games where
+        the team matches the name of this instance. Take the average
+        of that value. This is only for Away games.
+        '''
         return self._numGoalsScored(maxIncludedRecords, False, True, False)
 
 
     def avgGoalsAgainstPerGame(self, maxIncludedRecords=None):
-        # Find the total number of goals against for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value (includes home and away games).
+        '''Find the total number of goals against for all games where
+        the team matches the name of this instance. Take the average
+        of that value (includes home and away games).
+        '''
         return self._numGoalsScored(maxIncludedRecords, True, True, True)
 
 
     def avgGoalsAgainstPerGameHome(self, maxIncludedRecords=None):
-        # Find the total number of goals against for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value. This is only for Home games.
+        '''Find the total number of goals against for all games where
+        the team matches the name of this instance. Take the average
+        of that value. This is only for Home games.
+        '''
         return self._numGoalsScored(maxIncludedRecords, True, False, True)
 
 
     def avgGoalsAgainstPerGameAway(self, maxIncludedRecords=None):
-        # Find the total number of goals against for all games where
-        # the team matches the name of this instance. Take the average
-        # of that value. This is only for Away games.
+        '''Find the total number of goals against for all games where
+        the team matches the name of this instance. Take the average
+        of that value. This is only for Away games.
+        '''
         return self._numGoalsScored(maxIncludedRecords, False, True, True)
 
 
     def _maxGoals(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Find the max number of goals scored.'''
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -313,14 +356,14 @@ class TeamStats:
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
                     goalsInGame += 1
-            
+
             # stow the number of goals in this game
             goals.append(goalsInGame)
 
             # found the max number of events
             if len(goals) >= numEvents:
                 break
-    
+
         # make sure that the number of events matches the expected
         assert len(goals) == numEvents
 
@@ -328,36 +371,37 @@ class TeamStats:
 
 
     def maxGoalsScored(self, maxIncludedRecords=None):
-        # find the max number of goals scored from all records
+        '''Find the max number of goals scored from all records.'''
         return self._maxGoals(maxIncludedRecords, True, True, False)
 
 
     def maxGoalsScoredHome(self, maxIncludedRecords=None):
-        # find the max number of goals scored from all Home records
+        '''Find the max number of goals scored from all Home records.'''
         return self._maxGoals(maxIncludedRecords, True, False, False)
 
 
     def maxGoalsScoredAway(self, maxIncludedRecords=None):
-        # find the max number of goals scored from all Away records
+        '''Find the max number of goals scored from all Away records.'''
         return self._maxGoals(maxIncludedRecords, False, True, False)
 
 
     def maxGoalsAgainst(self, maxIncludedRecords=None):
-        # find the max number of goals against from all records
+        '''Find the max number of goals against from all records.'''
         return self._maxGoals(maxIncludedRecords, True, True, True)
 
 
     def maxGoalsAgainstHome(self, maxIncludedRecords=None):
-        # find the max number of goals against from all Home records
+        '''Find the max number of goals against from all Home records.'''
         return self._maxGoals(maxIncludedRecords, True, False, True)
 
 
     def maxGoalsAgainstAway(self, maxIncludedRecords=None):
-        # find the max number of goals against from all Away records
+        '''Find the max number of goals against from all Away records.'''
         return self._maxGoals(maxIncludedRecords, False, True, True)
-    
+
 
     def _averageTimeBetweenGoals(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Get the number of seconds between a goal being scored.'''
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -374,9 +418,11 @@ class TeamStats:
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
                     period = event.about.period - 1
-                    _goalTimes.append((period * SECONDS_PER_PERIOD) + parseTimeMMSS(event.about.periodTime))
-                            
-            # during a game in which the team did not score, 
+                    _goalTimes.append(
+                        (period * SECONDS_PER_PERIOD) + parseTimeMMSS(event.about.periodTime)
+                    )
+
+            # during a game in which the team did not score,
             # add the regulation time of the game
             if len(_goalTimes) == 0:
                 times.append(3 * SECONDS_PER_PERIOD)
@@ -394,42 +440,49 @@ class TeamStats:
 
 
     def avgTimeBetweenGoalsScoredSecs(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the team. 
-        # This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the team. 
+        This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, True, True, False)
 
 
     def avgTimeBetweenGoalsScoredSecsHome(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the team
-        # during home games. This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the team
+        during home games. This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, True, False, False)
-    
-    
+
+
     def avgTimeBetweenGoalsScoredSecsAway(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the team
-        # during away games. This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the team
+        during away games. This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, False, True, False)
-    
-    
+
+
     def avgTimeBetweenGoalsAgainstSecs(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the opponent.
-        # This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the opponent.
+        This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, True, True, True)
-    
+
 
     def avgTimeBetweenGoalsAgainstSecsHome(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the opponent
-        # during home games. This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the opponent
+        during home games. This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, True, False, True)
-    
+
 
     def avgTimeBetweenGoalsAgainstSecsAway(self, maxIncludedRecords=None):
-        # Find the average number of seconds between goals scored by the opponent
-        # during away games. This function does not include time before the first goal.
+        '''Find the average number of seconds between goals scored by the opponent
+        during away games. This function does not include time before the first goal.
+        '''
         return self._averageTimeBetweenGoals(maxIncludedRecords, False, True, True)
 
 
     def _shotsBetweenGoals(self, maxIncludedRecords, home=True, away=False, against=False):
+        '''Determine the number of shots that were taken before a goal was scored.'''
         games = self._isolateGames(home, away)
 
         numEvents = len(games) if maxIncludedRecords is None else \
@@ -450,13 +503,13 @@ class TeamStats:
                 elif event.result.event == EventType.GOAL.value:
                     shotsCaptured.append(shotsTaken)
                     shotsTaken = 0
-            
+
             # only save the total shots if none were scored during the game
             if len(shotsCaptured) == 0:
                 shots.append(shotsTaken)
             else:
                 shots.extend(shotsCaptured)
-            
+
             parsedEvents += 1
             # found the max number of events
             if parsedEvents >= numEvents:
@@ -466,42 +519,49 @@ class TeamStats:
 
 
     def avgShotsTakenBeforeGoalScored(self, maxIncludedRecords=None):
-        # Find the average number of shots taken between goals. This includes
-        # the first goal of the game.
+        '''Find the average number of shots taken between goals. This includes
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, True, True, False)
 
 
     def avgShotsTakenBeforeGoalScoredHome(self, maxIncludedRecords=None):
-        # Find the average number of shots taken between goals for home games. This includes
-        # the first goal of the game.
+        '''Find the average number of shots taken between goals for home games. This includes
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, True, False, False)
-    
+
 
     def avgShotsTakenBeforeGoalScoredAway(self, maxIncludedRecords=None):
-        # Find the average number of shots taken between goals for away games. This includes
-        # the first goal of the game.
+        '''Find the average number of shots taken between goals for away games. This includes
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, False, True, False)
 
 
     def avgShotsReceivedBeforeGoalScored(self, maxIncludedRecords=None):
-        # Find the average number of shots against us between goals. This includes 
-        # the first goal of the game.
+        '''Find the average number of shots against us between goals. This includes 
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, True, True, True)
 
 
     def avgShotsReceivedBeforeGoalScoredHome(self, maxIncludedRecords=None):
-        # Find the average number of shots against us between goals for home games. This includes 
-        # the first goal of the game.
+        '''Find the average number of shots against us between goals for home games. This includes 
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, True, False, True)
-    
+
 
     def avgShotsReceivedBeforeGoalScoredAway(self, maxIncludedRecords=None):
-        # Find the average number of shots against us between goals for away games. This includes 
-        # the first goal of the game.
+        '''Find the average number of shots against us between goals for away games. This includes 
+        the first goal of the game.
+        '''
         return self._shotsBetweenGoals(maxIncludedRecords, False, True, True)
 
 
     def json(self, maxIncludedRecords=None):
+        '''Return a dictionary that contains a valid json representation of the instance.'''
         return {
             "id": self.teamId,
             "name": self.name,
@@ -526,17 +586,27 @@ class TeamStats:
             "maxGoalsAgainstHome": self.maxGoalsAgainstHome(maxIncludedRecords),
             "maxGoalsAgainstAway": self.maxGoalsAgainstAway(maxIncludedRecords),
             "avgTimeBetweenGoalsScoredSecs": self.avgTimeBetweenGoalsScoredSecs(maxIncludedRecords),
-            "avgTimeBetweenGoalsScoredSecsHome": self.avgTimeBetweenGoalsScoredSecsHome(maxIncludedRecords),
-            "avgTimeBetweenGoalsScoredSecsAway": self.avgTimeBetweenGoalsScoredSecsAway(maxIncludedRecords),
-            "avgTimeBetweenGoalsAgainstSecs": self.avgTimeBetweenGoalsAgainstSecs(maxIncludedRecords),
-            "avgTimeBetweenGoalsAgainstSecsHome": self.avgTimeBetweenGoalsAgainstSecsHome(maxIncludedRecords),
-            "avgTimeBetweenGoalsAgainstSecsAway": self.avgTimeBetweenGoalsAgainstSecsAway(maxIncludedRecords),
+            "avgTimeBetweenGoalsScoredSecsHome": 
+                self.avgTimeBetweenGoalsScoredSecsHome(maxIncludedRecords),
+            "avgTimeBetweenGoalsScoredSecsAway": 
+                self.avgTimeBetweenGoalsScoredSecsAway(maxIncludedRecords),
+            "avgTimeBetweenGoalsAgainstSecs": 
+                self.avgTimeBetweenGoalsAgainstSecs(maxIncludedRecords),
+            "avgTimeBetweenGoalsAgainstSecsHome": 
+                self.avgTimeBetweenGoalsAgainstSecsHome(maxIncludedRecords),
+            "avgTimeBetweenGoalsAgainstSecsAway": 
+                self.avgTimeBetweenGoalsAgainstSecsAway(maxIncludedRecords),
             "avgShotsTakenBeforeGoalScored": self.avgShotsTakenBeforeGoalScored(maxIncludedRecords),
-            "avgShotsTakenBeforeGoalScoredHome": self.avgShotsTakenBeforeGoalScoredHome(maxIncludedRecords),
-            "avgShotsTakenBeforeGoalScoredAway": self.avgShotsTakenBeforeGoalScoredAway(maxIncludedRecords),
-            "avgShotsReceivedBeforeGoalScored": self.avgShotsReceivedBeforeGoalScored(maxIncludedRecords),
-            "avgShotsReceivedBeforeGoalScoredHome": self.avgShotsReceivedBeforeGoalScoredHome(maxIncludedRecords),
-            "avgShotsReceivedBeforeGoalScoredAway": self.avgShotsReceivedBeforeGoalScoredAway(maxIncludedRecords),
+            "avgShotsTakenBeforeGoalScoredHome": 
+                self.avgShotsTakenBeforeGoalScoredHome(maxIncludedRecords),
+            "avgShotsTakenBeforeGoalScoredAway": 
+                self.avgShotsTakenBeforeGoalScoredAway(maxIncludedRecords),
+            "avgShotsReceivedBeforeGoalScored": 
+                self.avgShotsReceivedBeforeGoalScored(maxIncludedRecords),
+            "avgShotsReceivedBeforeGoalScoredHome": 
+                self.avgShotsReceivedBeforeGoalScoredHome(maxIncludedRecords),
+            "avgShotsReceivedBeforeGoalScoredAway": 
+                self.avgShotsReceivedBeforeGoalScoredAway(maxIncludedRecords),
             "goalsScoredHomeGames": self.goalsScoredHomeGames(maxIncludedRecords),
             "goalsScoredAwayGames": self.goalsScoredAwayGames(maxIncludedRecords),
             "goalsScoredAgainstHomeGames": self.goalsScoredAgainstHomeGames(maxIncludedRecords),

@@ -1,12 +1,17 @@
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+# pylint: disable=too-many-locals
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=too-many-branches
+from json import loads
+from logging import getLogger
+from os.path import dirname, abspath, join as path_join, exists
+from statistics import mean
 from collections import defaultdict
 from datetime import datetime
 import inquirer
-from json import loads
-from logging import getLogger
-from nhl_model.event import Game
-from os.path import dirname, abspath, join as path_join, exists
 from scipy.stats import poisson
-from statistics import mean
+from nhl_model.event import Game
 
 
 logger = getLogger("nhl_neural_net")
@@ -19,7 +24,11 @@ def parsePoissonArguments():
     # Ask for the year/season for analysis
     currentYear = datetime.now().year
     questions = [
-        inquirer.Text('year', message="Enter the year for the season start.", default=currentYear-1),
+        inquirer.Text(
+            'year', 
+            message="Enter the year for the season start.",
+            default=currentYear-1
+        ),
     ]
     answers = inquirer.prompt(questions)
     year = int(answers["year"])
@@ -122,7 +131,7 @@ def calculateScores(teamIds, homeTeamEvents, awayTeamEvents):
             homeAttackStrength = avgHomeGoals / avgGoalsScoredHomeTotal
             teamScores["homeAttackStrength"] = homeAttackStrength
 
-        # Home Defense Strength 
+        # Home Defense Strength
         avgHomeGoalsAgainst = None if teamId not in homeTeamEvents else \
             mean([x.awayTeamGoalsActual for x in homeTeamEvents[teamId]])
         if avgHomeGoalsAgainst is not None:
@@ -135,7 +144,7 @@ def calculateScores(teamIds, homeTeamEvents, awayTeamEvents):
         if avgAwayGoals is not None:
             awayAttackStrength = avgAwayGoals / avgGoalsScoredAwayTotal
             teamScores["awayAttackStrength"] = awayAttackStrength
-        
+
         # Away Defense Strength
         avgAwayGoalsAgainst = None if teamId not in awayTeamEvents else \
             mean([x.homeTeamGoalsActual for x in awayTeamEvents[teamId]])
@@ -150,7 +159,7 @@ def calculateScores(teamIds, homeTeamEvents, awayTeamEvents):
 
 
 def findMaxGoalsScored(events):
-    # Get the maximum number of goals scored based on the games provided
+    '''Get the maximum number of goals scored based on the games provided.'''
     goalsScored = []
     for _, value in events.items():
         for game in value:
@@ -206,7 +215,7 @@ def parseSeasonEvents(year):
 
     :return: home team events, away team events
     """
-    # Get the entire schedule 
+    # Get the entire schedule
     schedule = getSchedule(year)
     if schedule is None:
         logger.error(f"Failed to find a schedule for year {year}")
@@ -224,8 +233,8 @@ def parseSeasonEvents(year):
     totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
     totalTeamIdsPrevSeason.update(list(awayTeamEventsPrev.keys()))
     previousSeasonScores  = calculateScores(
-        list(totalTeamIdsPrevSeason), 
-        homeTeamEventsPrev, 
+        list(totalTeamIdsPrevSeason),
+        homeTeamEventsPrev,
         awayTeamEventsPrev
     )
 
@@ -250,8 +259,7 @@ def parseSeasonEvents(year):
             else:
                 # indicates that the team may be new, or they don't have records
                 # from the previous year. Use the entire average for all teams
-                # from the previous year. 
-                # TODO: will this just average to 1?
+                # from the previous year.
                 homeTeamScores.update({"homeAttackStrength": 1.0, "homeDefenseStrength": 1.0})
         else:
             findTeamScoresCurrSeason.append(g.homeTeamId)
@@ -263,25 +271,24 @@ def parseSeasonEvents(year):
             else:
                 # indicates that the team may be new, or they don't have records
                 # from the previous year. Use the entire average for all teams
-                # from the previous year. 
-                # TODO: will this just average to 1?
+                # from the previous year.
                 awayTeamScores.update({"awayAttackStrength": 1.0, "awayDefenseStrength": 1.0})
         else:
             findTeamScoresCurrSeason.append(g.awayTeamId)
 
-        # Time to parse using the current seasonal data    
+        # Time to parse using the current seasonal data
         if findTeamScoresCurrSeason:
             currentScores = calculateScores(
-                findTeamScoresCurrSeason, 
-                parsedHomeTeamEvents, 
+                findTeamScoresCurrSeason,
+                parsedHomeTeamEvents,
                 parsedAwayTeamEvents
             )
-        
+
             if g.homeTeamId in currentScores:
                 homeTeamScores.update(currentScores[g.homeTeamId])
             if g.awayTeamId in currentScores:
                 awayTeamScores.update(currentScores[g.awayTeamId])
-    
+
             avgHomeGoalsScored, avgAwayGoalsScored = calculateAvgGoals(parsedHomeTeamEvents)
             maxGoals = findMaxGoalsScored(parsedHomeTeamEvents)
         else:
@@ -292,10 +299,11 @@ def parseSeasonEvents(year):
         # The Poisson Distribution only requires the mean value in this case these predicted values.
         # There is a tendency to regress to the mean - The Law of Averages. Even when there are
         # outlier games we should observe more stability in prediction as the season continues.
-        homeTeamGoalsPredicted = homeTeamScores["homeAttackStrength"] * awayTeamScores["awayDefenseStrength"] * avgHomeGoalsScored
-        awayTeamGoalsPredicted = awayTeamScores["awayAttackStrength"] * homeTeamScores["homeDefenseStrength"] * avgAwayGoalsScored
+        homeTeamGoalsPredicted = homeTeamScores["homeAttackStrength"] * \
+            awayTeamScores["awayDefenseStrength"] * avgHomeGoalsScored
+        awayTeamGoalsPredicted = awayTeamScores["awayAttackStrength"] * \
+            homeTeamScores["homeDefenseStrength"] * avgAwayGoalsScored
 
-        
         homeTeamWinCalc, awayTeamWinCalc, regulationDrawCalc, pdfData = createPredictions(
             maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted
         )
@@ -336,7 +344,7 @@ def execPoisson(year):
     performed. 
     """
 
-    homeTeamEvents, awayTeamEvents = parseSeasonEvents(year)
+    homeTeamEvents, _ = parseSeasonEvents(year)
 
     winsPredictedCorrect = 0
     totalGames = 0
@@ -345,8 +353,7 @@ def execPoisson(year):
         for event in events:
             if event.winnerPredicted:
                 winsPredictedCorrect += 1
-    
-    percentCorrrect = round(float(winsPredictedCorrect)/float(totalGames) *100.0, 2)
-    logger.info(f"Correct Predictions {winsPredictedCorrect}/{totalGames} ({percentCorrrect}%)")    
-    return percentCorrrect
 
+    percentCorrrect = round(float(winsPredictedCorrect)/float(totalGames) *100.0, 2)
+    logger.info(f"Correct Predictions {winsPredictedCorrect}/{totalGames} ({percentCorrrect}%)")
+    return percentCorrrect

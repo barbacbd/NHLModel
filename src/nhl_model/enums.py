@@ -1,12 +1,14 @@
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
 from enum import Enum
 
 
 class CompareFunction(Enum):
-
+    '''Types of functions used for comparing data.'''
     # The default comparison function. AVERAGES takes all of the data points for
     # the home and away team when they were home and away respectively, the data
     # points are averaged for all games of this type. For instance, if the home team
-    # scored 4, 5, 6 goals in their three home games, the average number of goals 
+    # scored 4, 5, 6 goals in their three home games, the average number of goals
     # value would be 5 for goals.
     AVERAGES = 'averages'
 
@@ -31,7 +33,7 @@ class EventType(Enum):
 
 
 def eventTypeToStr(eventType):
-    # convert the EventType to a string
+    '''Convert the EventType to a string'''
     for x in EventType:
         if x.value == eventType:
             return x.value
@@ -40,15 +42,15 @@ def eventTypeToStr(eventType):
 
 
 class TeamSide(Enum):
-    # simple identifier to indicate home vs away status of
-    # a team during a game. 
+    '''Simple identifier to indicate home vs away status of 
+    a team during a game.
+    '''
     AWAY = 0
     HOME = 1
 
 
 class Version(Enum):
-    # Type/Version of the API to use for data.
-
+    '''Type/Version of the API to use for data.'''
     # The new version will pull the data directly from the new
     # version of the API.
     NEW = "new"

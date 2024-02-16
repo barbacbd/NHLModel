@@ -1,12 +1,18 @@
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+# pylint: disable=unspecified-encoding
+# pylint: disable=unused-argument
+# pylint: disable=missing-function-docstring
 from unittest import TestCase, mock
 from datetime import datetime
 from os.path import dirname, abspath, join, exists
 from os import remove
 from shutil import move, copy
 from json import loads
+import pandas as pd
 from nhl_model.ann import (
-    findGamesByDate, 
-    findTodaysGames, 
+    findGamesByDate,
+    findTodaysGames,
     _loadConfig,  # private but testing this anyways
     CONFIG_FILE,
     _getTeamNames,
@@ -14,8 +20,6 @@ from nhl_model.ann import (
     prepareDataForPredictions
 )
 from nhl_model.enums import CompareFunction
-import requests
-import pandas as pd
 
 
 # Fake file for configuration - TESTING ONLY
@@ -52,7 +56,7 @@ def _moveConfigFileBack(moved):
     if moved:
         if exists(CONFIG_FILE):
             remove(CONFIG_FILE)
-        
+
         if exists(_CONFIG_FILE_TEST_PATH):
             move(_CONFIG_FILE_TEST_PATH, CONFIG_FILE)
 
@@ -65,10 +69,10 @@ class MockResponse:
         '''Fill the class with the required data for a response'''
         self.data = data
         self.code = status_code
-    
+
     def read(self):
         return self.data
-    
+
     def json(self):
         return self.data
 
@@ -76,13 +80,14 @@ class MockResponse:
 def mocked_requests_get(*args, **kwargs):
     if args[0] == _createTodaysDateStr():
         return MockResponse(_readJsonData()["today"], 200)
-    elif 'https://api-web.nhle.com/v1/score/' in args[0]:
+    if 'https://api-web.nhle.com/v1/score/' in args[0]:
         return MockResponse(_readJsonData()["other"], 200)
 
     return MockResponse(None, 404)
 
 
 class ANNClassTests(TestCase):
+    '''Test cases for the ANN functionality to the module.'''
 
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_find_todays_games(self, mock_get):
@@ -112,7 +117,7 @@ class ANNClassTests(TestCase):
                 month = 12
             else:
                 month = month - 1
-            
+
             # set to the min of the max days in any month
             day = 28
         else:
@@ -253,7 +258,7 @@ class ANNClassTests(TestCase):
         for i in expectedDropped:
             with self.subTest(f"Ensuring {i} is dropped during correction", i=i):
                 self.assertTrue(i not in afterCols and i in beforeCols)
-    
+
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_prepare_predictions_today(self, mock_get):
         '''Test preparing the data for predictions. This test will use the
@@ -276,7 +281,7 @@ class ANNClassTests(TestCase):
                     today.year
                 )
                 self.assertIsNotNone(preparedDf)
-    
+
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_prepare_predictions_direct_other(self, mock_get):
         '''Test preparing the data for predictions. This test will use the
@@ -296,7 +301,7 @@ class ANNClassTests(TestCase):
                 month = 12
             else:
                 month = month - 1
-            
+
             # set to the min of the max days in any month
             day = 28
         else:

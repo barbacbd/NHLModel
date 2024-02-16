@@ -1,4 +1,6 @@
-from enum import Enum
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+
 from nhl_core import NHLData
 from nhl_model.enums import EventType
 
@@ -8,6 +10,12 @@ ShotEvents = [x.value for x in EventType]
 
 
 class Game:
+    '''A Game contains all home and away team events that have occurred during
+    an NHL game.
+    '''
+
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, gameId, homeTeamId=None, awayTeamId=None):
         self.gameId = gameId
         self.homeTeamId = homeTeamId
@@ -25,37 +33,43 @@ class Game:
         self.awayTeamGoalsActual = 0
 
     def addHomeTeamEvent(self, event):
+        '''Add an event that occurred due to actions performed by the home team.'''
         if event.result.event == EventType.GOAL.value:
             self.homeTeamGoalsActual += 1
         self.homeTeamEvents.append(event)
-    
+
     def addAwayTeamEvent(self, event):
+        '''Add an event that occurred due to actions performed by the away team.'''
         if event.result.event == EventType.GOAL.value:
             self.awayTeamGoalsActual += 1
         self.awayTeamEvents.append(event)
 
     @property
     def winnerPredicted(self):
+        '''Returns true when the predicted winner is the actual winner.'''
         if (self.homeTeamWinPercent > self.awayTeamWinPercent and \
             self.homeTeamGoalsActual > self.awayTeamGoalsActual) or \
             (self.awayTeamWinPercent > self.homeTeamWinPercent and \
              self.awayTeamGoalsActual > self.homeTeamGoalsActual):
             return True
         return False
-    
+
     @property
     def winner(self):
+        '''Return home or away based on the team that scored the most goals.'''
         return "home" if self.homeTeamGoalsActual > self.awayTeamGoalsActual else "away"
 
     @property
     def totalGoals(self):
+        '''Get the sum of goals that both teams scored.'''
         return self.homeTeamGoalsActual + self.awayTeamGoalsActual
 
     @property
     def valid(self):
+        '''Returns true when the home and away teams are set.'''
         # technically it is possible to have no events saved, but the team Ids must be present
         return None not in (self.homeTeamId, self.awayTeamId)
-    
+
     def goals(self):
         """Returns a dict of number of goals for each team id for easy calculation
         """
@@ -66,6 +80,7 @@ class Game:
 
     @property
     def json(self):
+        '''Return a dictionary that contains a valid json representation of the instance.'''
         return {
             "gameId": self.gameId,
             "homeTeamId": self.homeTeamId,
@@ -81,9 +96,9 @@ class Game:
         }
 
     def fromJson(self, jsonData):
+        '''Set this instance from a valid json formatted dictionary.'''
         for key, value in jsonData.items():
             if key in ("homeTeamEvents", "awayTeamEvents"):
-                # TODO: this is a massive amount of data, so skipping for now above
                 setattr(self, key, [NHLData(x) for x in value])
             else:
                 setattr(self, key, value)

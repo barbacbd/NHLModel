@@ -5,6 +5,8 @@ executed before executing the poisson option through `exec.py`.
 Note: The data should be present in this directory (/data/nhl_data).
 This requires the old api. 
 """
+# pylint: disable=invalid-name
+# pylint: disable=unspecified-encoding
 
 from json import dumps, loads
 import os
@@ -18,7 +20,7 @@ directory = 'data/nhl_data/'
 
 # Go through the list of files. Make sure that we have all players (these may
 # require some corrections, see Corrections.py for more information). Retrieve
-# all of the events from each game too; these will be added to the database. 
+# all of the events from each game too; these will be added to the database.
 i = 1
 
 basePath = "schedules"
@@ -34,17 +36,17 @@ for root, dirs, files in os.walk(directory):
     if len(splitPath) == 1:
         continue
 
-    # create the new path for the file that will contain the schedules 
+    # create the new path for the file that will contain the schedules
     splitPath[0] = basePath
     newPath = path_join(*splitPath)
     if not exists(newPath):
         mkdir(newPath)
-    
+
     # data to be written to a specific seasonal directory
     seasonalData = []
 
     for file in files:
-        fname = os.path.join(root, file)   
+        fname = os.path.join(root, file)
         jsonData = None
         with open(fname) as jsonFile:
             jsonData = loads(jsonFile.read())
@@ -64,11 +66,12 @@ for root, dirs, files in os.walk(directory):
                     f"{x}TeamId": boxScore["teams"][x]["team"]["id"],
                     f"{x}TeamName": boxScore["teams"][x]["team"]["name"],
                     f"{x}TeamTriCode": boxScore["teams"][x]["team"]["triCode"],
-                    f"{x}TeamGoalsActual": boxScore["teams"][x]["teamStats"]["teamSkaterStats"]["goals"]
+                    f"{x}TeamGoalsActual": 
+                        boxScore["teams"][x]["teamStats"]["teamSkaterStats"]["goals"]
                 })
-            
+
             seasonalData.append(localGameData)
-    
+
     splitPath.append("schedule.json")
     newPath = path_join(*splitPath)
     with open(newPath, "w") as jsonFile:

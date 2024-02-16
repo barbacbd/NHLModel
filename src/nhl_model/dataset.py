@@ -1,14 +1,29 @@
-from datetime import datetime
+# pylint: disable=missing-module-docstring
+# pylint: disable=invalid-name
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=too-many-branches
+# pylint: disable=unnecessary-lambda-assignment
+# pylint: disable=inconsistent-return-statements
+# pylint: disable=eval-used
+# pylint: disable=unspecified-encoding
+# pylint: disable=too-many-statements
+# pylint: disable=too-many-locals
+# pylint: disable=dangerous-default-value
+# pylint: disable=consider-using-f-string
+# pylint: disable=missing-timeout
+# pylint: disable=unnecessary-dict-index-lookup
+# pylint: disable=bare-except
 from json import loads, dumps
 from logging import getLogger
+from os import mkdir, remove
+from os.path import exists, join as path_join
+from warnings import warn
+from datetime import datetime
+from requests import get
+import pandas as pd
 from nhl_core.endpoints import MAX_GAME_NUMBER
 from nhl_model.enums import Version
 from nhl_model.poisson import parseSeasonEvents
-from os import mkdir, remove
-from os.path import exists, join as path_join, dirname, abspath
-import pandas as pd
-from requests import get
-from warnings import warn
 
 
 BASE_SAVE_DIR = "/tmp/nhl_model"
@@ -91,7 +106,7 @@ def _parseInternalBoxScoreTeams(teamDict):
 
     for key, value in _staticBoxScoreTeamData.items():
         ret[key] = _parseInternalTeamData(teamDict, value)
-    
+
     return ret
 
 
@@ -107,7 +122,7 @@ def _parseInternalBoxScoreTeamsNew(teamDict):
 
     for key, value in _staticBoxScoreTeamDataNew.items():
         ret[key] = _parseInternalTeamData(teamDict, value)
-    
+
     ppData = _parsePPDataNew(teamDict["powerPlayConversion"])
     ret.update(ppData)
 
@@ -174,7 +189,7 @@ def _parseInternalBoxScorePlayers(teamDict):
                     if skaterDict[k] is None:
                         skaterDict[k] = 0
                     skaterDict[k] += v
-            
+
             numPlayers += 1
 
         elif "goalieStats" in value["stats"]:
@@ -183,7 +198,7 @@ def _parseInternalBoxScorePlayers(teamDict):
                     if goalieDict[k] is None:
                         goalieDict[k] = 0
                     goalieDict[k] += v
-            
+
             numGoalies += 1
 
     if numGoalies > 0:
@@ -303,8 +318,10 @@ def _parseInternalBoxScorePlayersNew(teamDict):
                     numPlayers += 1
                     skaterDict['assists'] += playerData["assists"]
                     skaterDict['shortHandedGoals'] += playerData["shorthandedGoals"]
-                    skaterDict["powerPlayAssists"] += (playerData["powerPlayPoints"] - playerData["powerPlayGoals"])
-                    skaterDict["shortHandedAssists"] += (playerData["shPoints"] - playerData["shorthandedGoals"])
+                    skaterDict["powerPlayAssists"] += \
+                        (playerData["powerPlayPoints"] - playerData["powerPlayGoals"])
+                    skaterDict["shortHandedAssists"] += \
+                        (playerData["shPoints"] - playerData["shorthandedGoals"])
 
         elif playerType in ("goalies",):
             for playerData in playerValues:
@@ -334,16 +351,20 @@ def _parseInternalBoxScorePlayersNew(teamDict):
         goalieDict["powerPlayShotsAgainst"] + goalieDict["shortHandedShotsAgainst"]
 
     goalieDict.update({
-        "savePercentage": 
-            round(float(goalieDict["saves"]) / float(totalShotsAgainst) * 100.0, 2) if totalShotsAgainst > 0 else 0.0,
-        "powerPlaySavePercentage": 
-            round(float(goalieDict["powerPlaySaves"]) / float(goalieDict["powerPlayShotsAgainst"]) * 100.0, 2) if \
+        "savePercentage":
+            round(float(goalieDict["saves"]) / float(totalShotsAgainst) * 100.0, 2)
+                if totalShotsAgainst > 0 else 0.0,
+        "powerPlaySavePercentage":
+            round(float(goalieDict["powerPlaySaves"]) /
+                  float(goalieDict["powerPlayShotsAgainst"]) * 100.0, 2) if \
                 goalieDict["powerPlayShotsAgainst"] > 0 else 0.0,
-        "shortHandedSavePercentage": 
-            round(float(goalieDict["shortHandedSaves"]) / float(goalieDict["shortHandedShotsAgainst"]) * 100.0, 2) if \
+        "shortHandedSavePercentage":
+            round(float(goalieDict["shortHandedSaves"]) /
+                  float(goalieDict["shortHandedShotsAgainst"]) * 100.0, 2) if \
                 goalieDict["shortHandedShotsAgainst"] > 0 else 0.0,
-        "evenStrengthSavePercentage": 
-            round(float(goalieDict["evenSaves"]) / float(goalieDict["evenShotsAgainst"]) * 100.0, 2) if \
+        "evenStrengthSavePercentage":
+            round(float(goalieDict["evenSaves"]) /
+                  float(goalieDict["evenShotsAgainst"]) * 100.0, 2) if \
                 goalieDict["evenShotsAgainst"] > 0 else 0.0,
     })
 
@@ -437,8 +458,10 @@ def parseRecentData(data, maxRecords=None, gameType=""):
     # NOTE: these calculations should be run before the current game information is added
     wins, losses, winPercent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10)
     _, _, totalWinPercent, streak = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']])
-    _, _, winPercentHomeRecent, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
-    _, _, totalWinPercentHome, _ = parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
+    _, _, winPercentHomeRecent, _ = 
+        parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], 10, "H")
+    _, _, totalWinPercentHome, _ = 
+        parseRecentData(teamRecentWinPercents[homeTeamData['teamId']], None, "H")
     homeTeamData.update({
         "recentWinPercent": winPercent,
         "totalWinPercent": totalWinPercent,
@@ -467,7 +490,7 @@ def parseRecentData(data, maxRecords=None, gameType=""):
         for v in data:
             if v[1] == gameType:
                 x.append(v[0])
-            
+
             if len(x) == _maxRecords:
                 break
 
@@ -484,7 +507,7 @@ def parseRecentData(data, maxRecords=None, gameType=""):
             if v != streakType:
                 break
             streak += 1
-        
+
         if streakType == "L":
             streak = -streak
 
@@ -525,7 +548,7 @@ def pullDatasetNewAPI(year):
 
     jsonData = None
 
-    # Load the file if it exists, use this data as a starting point 
+    # Load the file if it exists, use this data as a starting point
     if exists(CurrYearFilename):
         with open(CurrYearFilename, "rb") as jsonFile:
             jsonData = loads(jsonFile.read())
@@ -536,7 +559,7 @@ def pullDatasetNewAPI(year):
 
     if jsonData:
         currentGame = jsonData["metadata"].get("lastRegisteredGame", 0)
-        # read in the current box score data    
+        # read in the current box score data
         jsonGameData["boxScores"].update(jsonData.get("boxScores", {}))
 
     if 0 > currentGame >= MAX_GAME_NUMBER:
@@ -550,7 +573,7 @@ def pullDatasetNewAPI(year):
 
     while currentGame <= MAX_GAME_NUMBER:
 
-        # read in all of the current year data. 
+        # read in all of the current year data.
         try:
             endpointPath = _createEndpoint(_year, currentGame)
             logger.debug(f"Looking for {endpointPath}")
@@ -562,7 +585,9 @@ def pullDatasetNewAPI(year):
             jsonGameData["metadata"]["lastRegisteredGame"] = currentGame
             break
 
-        if datetime.strptime(jsonRequest["gameDate"], "%Y-%m-%d") >= datetime.strptime(shortDate, "%Y-%m-%d"):
+        if datetime.strptime(
+            jsonRequest["gameDate"], "%Y-%m-%d"
+        ) >= datetime.strptime(shortDate, "%Y-%m-%d"):
             logger.debug(f"Breaking out on game {currentGame}.")
             currentGame -= 1
             jsonGameData["metadata"]["lastRegisteredGame"] = currentGame
@@ -578,7 +603,7 @@ def pullDatasetNewAPI(year):
         with open(CurrYearFilename, "w") as jsonFile:
             jsonFile.write(dumps(jsonGameData, indent=2))
             logger.debug(f"data written to {CurrYearFilename}")
-    
+
         if exists(RecoveryFilename):
             logger.debug(f"removing recovery file {RecoveryFilename}")
             remove(RecoveryFilename)
@@ -586,9 +611,9 @@ def pullDatasetNewAPI(year):
         logger.warning(f"failed to save file {CurrYearFilename}, writing to {RecoveryFilename}")
         with open(RecoveryFilename, "w") as jsonFile:
             jsonFile.write(dumps(jsonGameData, indent=2))
-        
+
         return None  # error occurred - skip returning the recovery file
-    
+
     return CurrYearFilename
 
 
@@ -609,23 +634,19 @@ def generateDataset(version, startYear, endYear, validFiles=[]):
 
         for fname in validFiles:
 
-            # find the directory and parse the events for this data 
+            # find the directory and parse the events for this data
             splitPath = fname.split("/")
             year = int(splitPath[len(splitPath)-2])
 
             if year not in seasonParsedEvents:
                 parsedHomeTeamEvents, _ = parseSeasonEvents(year)
                 if None in (parsedHomeTeamEvents, ):
-                    # TODO: something needs to happen if there is no data ... break?
                     logger.warning(f"failed to find data for {year}")
                     seasonParsedEvents[year] = {}
                 else:
                     seasonParsedEvents[year] = parsedHomeTeamEvents
 
-            parsedHomeTeamEvents = {}
-            if year in seasonParsedEvents:
-                parsedHomeTeamEvents = seasonParsedEvents[year]
-            
+            parsedHomeTeamEvents = seasonParsedEvents.get(year, {})
 
             jsonData = None
             with open(fname) as jsonFile:
@@ -641,14 +662,14 @@ def generateDataset(version, startYear, endYear, validFiles=[]):
                     "gameId": gameInfo["game"]["pk"], 
                     "winner": bool(gameData["htGoals"] > gameData["atGoals"])
                 })
-                
+
                 totalData.append(gameData)
     else:
         for filename in validFiles:
             jsonData = None
             with open(filename, "rb") as jsonFile:
                 jsonData = loads(jsonFile.read())
-            
+
             # remove all data after it is loaded into memory
             logger.debug(f"removing file {filename}")
             remove(filename)
