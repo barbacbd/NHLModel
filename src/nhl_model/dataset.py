@@ -1,18 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-# pylint: disable=logging-fstring-interpolation
-# pylint: disable=too-many-branches
-# pylint: disable=unnecessary-lambda-assignment
-# pylint: disable=inconsistent-return-statements
-# pylint: disable=eval-used
-# pylint: disable=unspecified-encoding
-# pylint: disable=too-many-statements
-# pylint: disable=too-many-locals
-# pylint: disable=dangerous-default-value
-# pylint: disable=consider-using-f-string
-# pylint: disable=missing-timeout
-# pylint: disable=unnecessary-dict-index-lookup
-# pylint: disable=bare-except
 from json import loads, dumps
 from logging import getLogger
 from os import mkdir, remove
@@ -71,8 +56,8 @@ def _parsePPDataNew(powerPlayData):
     """Parse the power play information from the "new" boxscore data that 
     can be retrieved from the new API.
     """
-    sp = powerPlayData.split("/")
-    success, opportunities = int(sp[0]), int(sp[1])
+    spPPD = powerPlayData.split("/")
+    success, opportunities = int(spPPD[0]), int(spPPD[1])
     return {
         "powerPlayPercentage": round(eval(powerPlayData) * 100.0, 2) if opportunities > 0 else 0.0,
         "powerPlayGoals": success,
@@ -130,7 +115,7 @@ def _parseInternalBoxScoreTeamsNew(teamDict):
 
 
 
-def _parseInternalBoxScorePlayers(teamDict):
+def _parseInternalBoxScorePlayers(teamDict):  # pylint: disable=too-many-branches
     """In the original version of the API, the player data was added to the
     box score. Parse this data for each of the teams. The following stats are 
     present for the normal skater:
@@ -254,7 +239,7 @@ def parseBoxScoreSplit(boxscore):
     return homeTeamData, awayTeamData
 
 
-def _parseInternalBoxScorePlayersNew(teamDict):
+def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-branches
     """In the new version of the API, the player data was added to the
     box score. Parse this data for each of the teams. In the original API
     most of the data was present, but more of the data must be calculated
@@ -329,23 +314,23 @@ def _parseInternalBoxScorePlayersNew(teamDict):
                 timeOnIce = int(spTOI[0]) * 60 + int(spTOI[1])
                 if timeOnIce > 0:
                     numGoalies += 1
-                    sp = playerData["evenStrengthShotsAgainst"].split("/")
-                    if len(sp) == 2:
-                        goalieDict["evenShotsAgainst"] = goalieDict["evenShotsAgainst"] + int(sp[1])
-                        goalieDict["saves"] = goalieDict["saves"] + int(sp[0])
-                        goalieDict["evenSaves"] = goalieDict["evenSaves"] + int(sp[0])
+                    spPD = playerData["evenStrengthShotsAgainst"].split("/")
+                    if len(spPD) == 2:
+                        goalieDict["evenShotsAgainst"] = goalieDict["evenShotsAgainst"] + int(spPD[1])
+                        goalieDict["saves"] = goalieDict["saves"] + int(spPD[0])
+                        goalieDict["evenSaves"] = goalieDict["evenSaves"] + int(spPD[0])
 
-                    sp = playerData["powerPlayShotsAgainst"].split("/")
-                    if len(sp) == 2:
-                        goalieDict["powerPlayShotsAgainst"] += int(sp[1])
-                        goalieDict["saves"] += int(sp[0])
-                        goalieDict["powerPlaySaves"] += int(sp[0])
+                    spPD = playerData["powerPlayShotsAgainst"].split("/")
+                    if len(spPD) == 2:
+                        goalieDict["powerPlayShotsAgainst"] += int(spPD[1])
+                        goalieDict["saves"] += int(spPD[0])
+                        goalieDict["powerPlaySaves"] += int(spPD[0])
 
-                    sp = playerData["shorthandedShotsAgainst"].split("/")
-                    if len(sp) == 2:
-                        goalieDict["shortHandedShotsAgainst"] += int(sp[1])
-                        goalieDict["saves"] += int(sp[0])
-                        goalieDict["shortHandedSaves"] += int(sp[0])
+                    spPD = playerData["shorthandedShotsAgainst"].split("/")
+                    if len(spPD) == 2:
+                        goalieDict["shortHandedShotsAgainst"] += int(spPD[1])
+                        goalieDict["saves"] += int(spPD[0])
+                        goalieDict["shortHandedSaves"] += int(spPD[0])
 
     totalShotsAgainst = goalieDict["evenShotsAgainst"] + \
         goalieDict["powerPlayShotsAgainst"] + goalieDict["shortHandedShotsAgainst"]
@@ -533,8 +518,8 @@ def pullDatasetNewAPI(year):
             logger.warning("the current season may not have started, please check back later")
             return
 
-    CurrYearFilename = newAPIFile(f"{_year}-NHL-season.json")
-    logger.debug(CurrYearFilename)
+    currYearFilename = newAPIFile(f"{_year}-NHL-season.json")
+    logger.debug(currYearFilename)
 
     shortDate = f"{datetime.now().year}-{datetime.now().month}-{datetime.now().day}"
     jsonGameData = {
@@ -549,8 +534,8 @@ def pullDatasetNewAPI(year):
     jsonData = None
 
     # Load the file if it exists, use this data as a starting point
-    if exists(CurrYearFilename):
-        with open(CurrYearFilename, "rb") as jsonFile:
+    if exists(currYearFilename):
+        with open(currYearFilename, "rb") as jsonFile:
             jsonData = loads(jsonFile.read())
     elif exists(RecoveryFilename):
         logger.debug(f"reading data from recovery file {RecoveryFilename}")
@@ -564,7 +549,7 @@ def pullDatasetNewAPI(year):
 
     if 0 > currentGame >= MAX_GAME_NUMBER:
         logger.error(f"No more regular season games to evaluate for {_year}.")
-        return CurrYearFilename
+        return currYearFilename
 
     # increase the starting point by 1
     currentGame += 1
@@ -600,21 +585,21 @@ def pullDatasetNewAPI(year):
         mkdir(BASE_SAVE_DIR)
 
     try:
-        with open(CurrYearFilename, "w") as jsonFile:
+        with open(currYearFilename, "w") as jsonFile:
             jsonFile.write(dumps(jsonGameData, indent=2))
-            logger.debug(f"data written to {CurrYearFilename}")
+            logger.debug(f"data written to {currYearFilename}")
 
         if exists(RecoveryFilename):
             logger.debug(f"removing recovery file {RecoveryFilename}")
             remove(RecoveryFilename)
     except FileNotFoundError:
-        logger.warning(f"failed to save file {CurrYearFilename}, writing to {RecoveryFilename}")
+        logger.warning(f"failed to save file {currYearFilename}, writing to {RecoveryFilename}")
         with open(RecoveryFilename, "w") as jsonFile:
             jsonFile.write(dumps(jsonGameData, indent=2))
 
         return None  # error occurred - skip returning the recovery file
 
-    return CurrYearFilename
+    return currYearFilename
 
 
 def generateDataset(version, startYear, endYear, validFiles=[]):

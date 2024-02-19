@@ -1,8 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-# pylint: disable=too-many-locals
-# pylint: disable=logging-fstring-interpolation
-# pylint: disable=too-many-branches
 from json import loads
 from logging import getLogger
 from os.path import dirname, abspath, join as path_join, exists
@@ -71,11 +66,11 @@ def parseSchedule(schedule):
     homeTeamEvents = defaultdict(list)
     awayTeamEvents = defaultdict(list)
     for game in schedule:
-        g = Game("randomData")
-        g.fromJson(game)
+        gameObj = Game("randomData")
+        gameObj.fromJson(game)
 
-        homeTeamEvents[g.homeTeamId].append(g)
-        awayTeamEvents[g.awayTeamId].append(g)
+        homeTeamEvents[gameObj.homeTeamId].append(gameObj)
+        awayTeamEvents[gameObj.awayTeamId].append(gameObj)
 
     return homeTeamEvents, awayTeamEvents
 
@@ -209,7 +204,7 @@ def createPredictions(maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted):
     return homeTeamWinCalc, awayTeamWinCalc, regulationDrawCalc, pdfData
 
 
-def parseSeasonEvents(year):
+def parseSeasonEvents(year):  # pylint: disable=too-many-branches
     """Parse the events for a given season. This will include predicting which team
     will win each game.
 
@@ -244,8 +239,8 @@ def parseSeasonEvents(year):
 
     for game in schedule:
 
-        g = Game("randomGame")
-        g.fromJson(game)
+        gameObj = Game("randomGame")
+        gameObj.fromJson(game)
 
         homeTeamScores = {}
         awayTeamScores = {}
@@ -253,28 +248,28 @@ def parseSeasonEvents(year):
         findTeamScoresCurrSeason = []
 
         # use the previous season data to predict the home values
-        if g.homeTeamId not in parsedHomeTeamEvents:
-            if g.homeTeamId in previousSeasonScores:
-                homeTeamScores.update(previousSeasonScores[g.homeTeamId])
+        if gameObj.homeTeamId not in parsedHomeTeamEvents:
+            if gameObj.homeTeamId in previousSeasonScores:
+                homeTeamScores.update(previousSeasonScores[gameObj.homeTeamId])
             else:
                 # indicates that the team may be new, or they don't have records
                 # from the previous year. Use the entire average for all teams
                 # from the previous year.
                 homeTeamScores.update({"homeAttackStrength": 1.0, "homeDefenseStrength": 1.0})
         else:
-            findTeamScoresCurrSeason.append(g.homeTeamId)
+            findTeamScoresCurrSeason.append(gameObj.homeTeamId)
 
         # use the previous season data to predict away values
-        if g.awayTeamId not in parsedAwayTeamEvents:
-            if g.awayTeamId in previousSeasonScores:
-                awayTeamScores.update(previousSeasonScores[g.awayTeamId])
+        if gameObj.awayTeamId not in parsedAwayTeamEvents:
+            if gameObj.awayTeamId in previousSeasonScores:
+                awayTeamScores.update(previousSeasonScores[gameObj.awayTeamId])
             else:
                 # indicates that the team may be new, or they don't have records
                 # from the previous year. Use the entire average for all teams
                 # from the previous year.
                 awayTeamScores.update({"awayAttackStrength": 1.0, "awayDefenseStrength": 1.0})
         else:
-            findTeamScoresCurrSeason.append(g.awayTeamId)
+            findTeamScoresCurrSeason.append(gameObj.awayTeamId)
 
         # Time to parse using the current seasonal data
         if findTeamScoresCurrSeason:
@@ -284,10 +279,10 @@ def parseSeasonEvents(year):
                 parsedAwayTeamEvents
             )
 
-            if g.homeTeamId in currentScores:
-                homeTeamScores.update(currentScores[g.homeTeamId])
-            if g.awayTeamId in currentScores:
-                awayTeamScores.update(currentScores[g.awayTeamId])
+            if gameObj.homeTeamId in currentScores:
+                homeTeamScores.update(currentScores[gameObj.homeTeamId])
+            if gameObj.awayTeamId in currentScores:
+                awayTeamScores.update(currentScores[gameObj.awayTeamId])
 
             avgHomeGoalsScored, avgAwayGoalsScored = calculateAvgGoals(parsedHomeTeamEvents)
             maxGoals = findMaxGoalsScored(parsedHomeTeamEvents)
@@ -308,7 +303,7 @@ def parseSeasonEvents(year):
             maxGoals, homeTeamGoalsPredicted, awayTeamGoalsPredicted
         )
 
-        g.fromJson(
+        gameObj.fromJson(
             {
                 "homeTeamWinPercent": round(homeTeamWinCalc * 100.0, 2),
                 "homeTeamGoalsPrediction": homeTeamGoalsPredicted,
@@ -325,8 +320,8 @@ def parseSeasonEvents(year):
 
         # update the home and away events that have been parsed - each game
         # is both a home and an away event
-        parsedHomeTeamEvents[g.homeTeamId].append(g)
-        parsedAwayTeamEvents[g.awayTeamId].append(g)
+        parsedHomeTeamEvents[gameObj.homeTeamId].append(gameObj)
+        parsedAwayTeamEvents[gameObj.awayTeamId].append(gameObj)
 
     return parsedHomeTeamEvents, parsedAwayTeamEvents
 

@@ -1,6 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-
 from nhl_core import NHLData
 from nhl_model.enums import EventType
 

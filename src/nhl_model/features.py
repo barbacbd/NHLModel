@@ -1,6 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-# pylint: disable=unused-argument
 from mrmr import mrmr_classif
 from sklearn.metrics import f1_score
 from sklearn.ensemble import RandomForestClassifier

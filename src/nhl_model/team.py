@@ -1,5 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
 from statistics import mean
 from nhl_model.event import EventType
 
@@ -129,15 +127,15 @@ class TeamStats:
         return dict(sorted(games.items()))
 
 
-    def _isolateEvents(self, game_num, game, against):
+    def _isolateEvents(self, gameNum, game, against):
         '''Determine the list of events that should be searched for the game
         Home events are used when the game number exists in the home games and 
         we are not looking for goals against, or the game number is in away games
         and we are looking for goals against.
         The opposite is true for away events.
         '''
-        if (game_num in self._awayEvents and not against) or \
-            (game_num in self._homeEvents and against):
+        if (gameNum in self._awayEvents and not against) or \
+            (gameNum in self._homeEvents and against):
             return game.awayTeamEvents
         return game.homeTeamEvents
 
@@ -152,9 +150,9 @@ class TeamStats:
         times = []
 
         # during a game in which no goals were scored - add the 60 minute
-        for game_num, game in games.items():
+        for gameNum, game in games.items():
             foundGoal = False
-            gameEvents = self._isolateEvents(game_num, game, against)
+            gameEvents = self._isolateEvents(gameNum, game, against)
 
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
@@ -236,9 +234,9 @@ class TeamStats:
         goals = []
 
         # during a game in which no goals were scored - add the 60 minute
-        for game_num, game in games.items():
+        for gameNum, game in games.items():
             goalsInGame = 0
-            gameEvents = self._isolateEvents(game_num, game, against)
+            gameEvents = self._isolateEvents(gameNum, game, against)
 
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
@@ -349,9 +347,9 @@ class TeamStats:
         goals = []
 
         # during a game in which no goals were scored - add the 60 minute
-        for game_num, game in games.items():
+        for gameNum, game in games.items():
             goalsInGame = 0
-            gameEvents = self._isolateEvents(game_num, game, against)
+            gameEvents = self._isolateEvents(gameNum, game, against)
 
             for event in gameEvents:
                 if event.result.event == EventType.GOAL.value:
@@ -411,8 +409,8 @@ class TeamStats:
 
         parsedEvents = 0
         # during a game in which no goals were scored - add the 60 minute
-        for game_num, game in games.items():
-            gameEvents = self._isolateEvents(game_num, game, against)
+        for gameNum, game in games.items():
+            gameEvents = self._isolateEvents(gameNum, game, against)
             _goalTimes = []
 
             for event in gameEvents:
@@ -492,10 +490,10 @@ class TeamStats:
         parsedEvents = 0
 
         # during a game in which no goals were scored - add the 60 minute
-        for game_num, game in games.items():
+        for gameNum, game in games.items():
             shotsTaken = 0
             shotsCaptured = []
-            gameEvents = self._isolateEvents(game_num, game, against)
+            gameEvents = self._isolateEvents(gameNum, game, against)
 
             for event in gameEvents:
                 if event.result.event == EventType.SHOT.value:

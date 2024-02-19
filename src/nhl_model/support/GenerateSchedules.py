@@ -5,9 +5,6 @@ executed before executing the poisson option through `exec.py`.
 Note: The data should be present in this directory (/data/nhl_data).
 This requires the old api. 
 """
-# pylint: disable=invalid-name
-# pylint: disable=unspecified-encoding
-
 from json import dumps, loads
 import os
 from os import mkdir

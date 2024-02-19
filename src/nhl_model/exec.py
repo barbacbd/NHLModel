@@ -1,6 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-# pylint: disable=unused-variable
 import argparse
 from datetime import datetime
 from logging import getLogger, basicConfig

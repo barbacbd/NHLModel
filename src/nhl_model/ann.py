@@ -1,19 +1,3 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=invalid-name
-# pylint: disable=logging-fstring-interpolation
-# pylint: disable=import-error
-# pylint: disable=no-member
-# pylint: disable=too-many-arguments
-# pylint: disable=no-name-in-module
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
-# pylint: disable=bare-except
-# pylint: disable=dangerous-default-value
-# pylint: disable=consider-using-enumerate
-# pylint: disable=missing-timeout
-# pylint: disable=too-many-locals
-# pylint: disable=unspecified-encoding
-# pylint: disable=f-string-without-interpolation
 from datetime import datetime
 from enum import Enum
 from json import dumps, loads
@@ -73,9 +57,9 @@ def findFiles(version, startYear, endYear):
         # data must already exist. The API can no longer be reached. For this particular
         # task, the data is expected to exist in the `directory` location above.
         for root, _, files in walk(OLD_DATA_DIR):
-            sp = root.split("/")
+            spDir = root.split("/")
             try:
-                if startYear <= int(sp[len(sp)-1]) <= endYear:
+                if startYear <= int(spDir[len(spDir)-1]) <= endYear:
                     validFiles.extend([path_join(root, f) for f in files])
             except:
                 pass
@@ -106,15 +90,15 @@ def _askForCommonData(config, files=[]):
     answers = inquirer.prompt(questions)
     outputs[_PREDICTION_FILE_KEY] = path_join(*[BASE_SAVE_DIR, answers[_PREDICTION_FILE_KEY]])
 
-    cf = None
+    cfCandidate = None
     if config.get(_COMPARE_FUNC_KEY, None) is not None:
         candidates = [
             x.name for x in CompareFunction if x.name.lower() == config[_COMPARE_FUNC_KEY].lower()
         ]
         if len(candidates) == 1:
-            cf = candidates[0]
+            cfCandidate = candidates[0]
 
-    if cf is None:
+    if cfCandidate is None:
         questions = [
             inquirer.List(_COMPARE_FUNC_KEY, message="Function used for evaluating team data.",
                           choices=[x.name for x in CompareFunction]),
@@ -123,12 +107,12 @@ def _askForCommonData(config, files=[]):
         outputs[_COMPARE_FUNC_KEY] = [
             x.name for x in CompareFunction if x.name == answers[_COMPARE_FUNC_KEY]][0]
     else:
-        outputs[_COMPARE_FUNC_KEY] = cf
+        outputs[_COMPARE_FUNC_KEY] = cfCandidate
 
     return outputs
 
 
-def parseAnnArguments(config):
+def parseAnnArguments(config):  # pylint: disable=too-many-branches
     """Ask the user for input. This will determine if a new model is created or 
     a new/different one is created.
 
@@ -203,9 +187,9 @@ def parseAnnArguments(config):
         if _FEATURE_SELECTION_KEY in answers:
             outputs[_FEATURE_SELECTION_KEY] = answers[_FEATURE_SELECTION_KEY]
 
-        fs = outputs[_FEATURE_SELECTION_KEY]
+        fsCandidate = outputs[_FEATURE_SELECTION_KEY]
 
-        if fs == "mRMR":
+        if fsCandidate == "mRMR":
             if "K" not in config:
                 questions = [inquirer.Text('K', message="K", default=10)]
                 answers = inquirer.prompt(questions)
@@ -221,7 +205,7 @@ def parseAnnArguments(config):
             else:
                 outputs["K"] = config["K"]
 
-        elif fs == "F1 Scores":
+        elif fsCandidate == "F1 Scores":
             if "precision" not in config:
                 questions = [inquirer.Text('precision', message="precision", default=1.0)]
                 answers = inquirer.prompt(questions)
@@ -325,15 +309,15 @@ def _createHeadToHead(df):
         """Helper function to extract the home and away Team average data.
         The data will be combined into a single record and returned.
         """
-        hr = avgs.loc[(avgs['htTeamid']==homeTeamId)]
-        ar = avgs.loc[(avgs['atTeamid']==awayTeamId)]
+        homeRecord = avgs.loc[(avgs['htTeamid']==homeTeamId)]
+        awayRecord = avgs.loc[(avgs['atTeamid']==awayTeamId)]
 
-        idx = hr.index[0]
-        for col in ar.columns:
+        idx = homeRecord.index[0]
+        for col in awayRecord.columns:
             if col.startswith("at"):
-                hr.at[idx, col] = ar.iloc[0][col]
+                homeRecord.at[idx, col] = awayRecord.iloc[0][col]
 
-        return hr
+        return homeRecord
 
 
     logger.debug("creating the head to head dataframe")
