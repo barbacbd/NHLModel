@@ -1,7 +1,4 @@
-# pylint: disable=missing-module-docstring
 # pylint: disable=invalid-name
-# pylint: disable=unspecified-encoding
-# pylint: disable=unused-argument
 # pylint: disable=missing-function-docstring
 from unittest import TestCase, mock
 from datetime import datetime
