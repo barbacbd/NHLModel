@@ -29,10 +29,10 @@ jobs:
       - name: Local install
         run: |
           python -m pip install .
-    - name: Setup Git
-      run: |
-        git config --global user.name "Brent Barbachem"
-        git config --global user.email "barbacbd@dukes.jmu.edu"
+      - name: Setup Git
+        run: |
+          git config --global user.name "Brent Barbachem"
+          git config --global user.email "barbacbd@dukes.jmu.edu"
       - name: Install Test Deps
         run: |
           python -m pip install -e .[tests]
