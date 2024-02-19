@@ -8,13 +8,15 @@ from shutil import move, copy
 from json import loads
 import pandas as pd
 from nhl_model.ann import (
+     CONFIG_FILE,
+    correctData,
+    _createArtifactDir,  # private but using anyways
     findGamesByDate,
     findTodaysGames,
-    _loadConfig,  # private but testing this anyways
-    CONFIG_FILE,
     _getTeamNames,
-    correctData,
-    prepareDataForPredictions
+    _loadConfig,  # private but testing this anyways
+    prepareDataForPredictions,
+
 )
 from nhl_model.enums import CompareFunction
 
@@ -85,6 +87,12 @@ def mocked_requests_get(*args, **kwargs):
 
 class ANNClassTests(TestCase):
     '''Test cases for the ANN functionality to the module.'''
+
+    @classmethod
+    def setUpClass(cls):
+        '''Ensure that the artifact directory exists for testing purposes.'''
+        _createArtifactDir()
+        return super().setUpClass()
 
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_find_todays_games(self, mock_get):

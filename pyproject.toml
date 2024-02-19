@@ -44,6 +44,7 @@ dependencies = [
     "pandas",
     "openpyxl",
     "mrmr_selection",
+    "nhl-core",
 ]
 dynamic = ["version"]
 
@@ -59,6 +60,9 @@ tests = [
     "pylint",
     "pytest-order", 
     "pytest-subtests",
+]
+lint = [
+    "pylint",  # this exists in multiple spaces, and that's ok
 ]
 clean = [
     "pyclean",

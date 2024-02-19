@@ -620,11 +620,20 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
 
 
-def execAnn(override=False):
-    '''main execution point for the artificial neural network.'''
+def _createArtifactDir():
+    '''Create the directory that will contain all artifacts. 
+    Note: if the base directory(ies) of `BASE_SAVE_DIR` do not exist, then this
+    will fail. Currently, that would be the case if executing on a non-linux 
+    platform.
+    '''
     if not exists(BASE_SAVE_DIR):
         logger.debug(f"creating base directory {BASE_SAVE_DIR}")
         mkdir(BASE_SAVE_DIR)
+
+
+def execAnn(override=False):
+    '''main execution point for the artificial neural network.'''
+    _createArtifactDir()
 
     inputs = _loadConfig(override=override)
     outputs = parseAnnArguments(inputs)

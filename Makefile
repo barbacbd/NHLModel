@@ -26,6 +26,11 @@ install:
 test:
 	pip install -e .[tests]
 
+lint:
+	pip install -e .[lint]
+	pylint src/nhl_model/ --rcfile .pylintrc
+	pylint tests --rcfile .pylintrc
+
 clean:
 	pip install -e .[clean]
 	yes | pip uninstall nhl_model
@@ -33,4 +38,4 @@ clean:
 	rm -rf src/*.egg-info
 	pyclean .
 
-.PHONY: install test clean 
+.PHONY: install test lint clean 
