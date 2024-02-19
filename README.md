@@ -1,5 +1,13 @@
 # NHL Model
 
+
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) ![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)
+
+[![Build](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml)
+[![Pylint](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml)
+
+[![GitHub latest commit](https://badgen.net/github/last-commit/barbacbd/NHLModel)](https://github.com/barbacbd/NHLModel/commit/) ![Code Coverage](https://raw.githubusercontent.com/barbacbd/nautical/master/.cov/coverage-badge.svg)
+
 ## Artificial Neural Network
 
 The artificial neural network is used to create a model for predicting the outcomes of future NHL games based on previous games. 
