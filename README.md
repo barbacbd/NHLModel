@@ -5,7 +5,7 @@
 
 [![Build](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml)
 [![Pylint](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml)
-[![GitHub latest commit](https://badgen.net/github/last-commit/barbacbd/NHLModel)](https://github.com/barbacbd/NHLModel/commit/) ![Code Coverage](https://raw.githubusercontent.com/barbacbd/NHLModel/main/.cov/coverage-badge.svg)
+[![GitHub last commit](https://img.shields.io/github/last-commit/barbacbd/NHLModel/main)](https://github.com/barbacbd/NHLModel/commit/) ![Code Coverage](https://raw.githubusercontent.com/barbacbd/NHLModel/main/.cov/coverage-badge.svg)
 </h1>
 
 ## Artificial Neural Network
