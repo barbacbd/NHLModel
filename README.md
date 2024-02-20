@@ -1,7 +1,7 @@
 <h1>NHL Model</h1>
 <h1 align="center">
 
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) ![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black) [![GitHub Actions](https://img.shields.io/badge/github%20actions-%232671E5.svg?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/barbacbd/NHLModel/actions)
 
 [![Build](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/python-app.yml)
 [![Pylint](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml/badge.svg)](https://github.com/barbacbd/NHLModel/actions/workflows/pylint.yml)
