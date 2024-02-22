@@ -545,6 +545,44 @@ def _loadConfig(override=False):
     return inputs
 
 
+def _setPredictions(todaysData):
+    """Set or update the predictions with the values for the current run.
+    """
+    filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
+    outputForDF = todaysData
+
+    if exists(filename):
+        originalDF = pd.read_excel(filename)
+        originalDF.drop(originalDF.columns[originalDF.columns.str.contains(
+            'unnamed', case=False)], axis=1, inplace=True)
+
+        originalDFAsDicts = originalDF.to_dict(orient='records')
+        outputNotFound = []
+
+        for outRow in outputForDF:
+            updated = False
+            for idx in range(len(originalDFAsDicts)):
+                if outRow["home"] == originalDFAsDicts[idx]["home"] and \
+                    outRow["away"] == originalDFAsDicts[idx]["away"] and \
+                    outRow["gameDate"] == originalDFAsDicts[idx]["gameDate"]:
+                    # update the values in the original set with the predicted values
+                    # that were currently executed
+                    originalDFAsDicts[idx] = outRow
+                    updated = True
+                    # break out of the inner loop
+                    break
+
+            if not updated:
+                outputNotFound.append(outRow)
+
+        # reset the output list of dictionaries so that all of the updates
+        # are included
+        outputForDF = originalDFAsDicts + outputNotFound
+
+    # set the data in excel file with the actual values
+    pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
+
+
 def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
     """Execute the model using the values used for prediction.
 
@@ -596,8 +634,8 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
     # extract metadata for comparison
     teams = _getTeamNames()
     todaysGameData = findGamesByDate(day, month, year)
-
     outputForDF = []
+
     for index, game in enumerate(todaysGameData["games"]):
         homeTeam = [x["fullName"] for x in teams if x["id"] == game['homeTeam']['id']][0]
         awayTeam = [x["fullName"] for x in teams if x["id"] == game['awayTeam']['id']][0]
@@ -606,7 +644,10 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         outputForDF.append({
             "home": homeTeam,
             "away": awayTeam,
-            "predictedWinner": predictedWinner
+            "gameDate": datetime(year, month, day).strftime("%Y-%m-%d"),
+            "datePredicted": datetime.now().strftime("%Y-%m-%d"),
+            "predictedWinner": predictedWinner,
+            "correct": False
         })
 
         print(
@@ -614,10 +655,7 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         )
 
     if outputForDF:
-        todaysDate = datetime.now()
-        filename = f'{todaysDate.strftime("%Y-%m-%d")}-predictions.xlsx'
-        filename = path_join(*[BASE_SAVE_DIR, filename])
-        pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
+        _setPredictions(outputForDF)
 
 
 def _createArtifactDir():
