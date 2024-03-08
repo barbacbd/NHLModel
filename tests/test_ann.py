@@ -8,7 +8,7 @@ from shutil import move, copy
 from json import loads
 import pandas as pd
 from nhl_model.ann import (
-     CONFIG_FILE,
+    CONFIG_FILE,
     correctData,
     _createArtifactDir,  # private but using anyways
     findGamesByDate,

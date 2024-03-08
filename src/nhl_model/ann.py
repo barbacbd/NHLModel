@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
 from json import dumps, loads
@@ -545,39 +546,61 @@ def _loadConfig(override=False):
     return inputs
 
 
+def _readPredictionsFile():
+    """Read the predictions file.
+
+    :return: Dataframe when successful, otherwise None.
+    """
+    if not exists(BASE_SAVE_DIR):
+        logger.debug(f"failed to find directory: {BASE_SAVE_DIR}")
+        return
+
+    filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
+
+    if not exists(filename):
+        logger.debug("failed to find file: {filename}")
+        return
+
+    df = pd.read_excel(filename)
+    # drop any column that came in with unnamed value
+    df.drop(df.columns[df.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
+
+    return df
+
+
 def _setPredictions(todaysData):
     """Set or update the predictions with the values for the current run.
     """
     filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
     outputForDF = todaysData
 
-    if exists(filename):
-        originalDF = pd.read_excel(filename)
-        originalDF.drop(originalDF.columns[originalDF.columns.str.contains(
-            'unnamed', case=False)], axis=1, inplace=True)
+    originalDF = _readPredictionsFile()
+    if originalDF is None:
+        logger.debug("failed to read predictions file")
+        return
 
-        originalDFAsDicts = originalDF.to_dict(orient='records')
-        outputNotFound = []
+    originalDFAsDicts = originalDF.to_dict(orient='records')
+    outputNotFound = []
 
-        for outRow in outputForDF:
-            updated = False
-            for idx in range(len(originalDFAsDicts)):
-                if outRow["home"] == originalDFAsDicts[idx]["home"] and \
-                    outRow["away"] == originalDFAsDicts[idx]["away"] and \
-                    outRow["gameDate"] == originalDFAsDicts[idx]["gameDate"]:
-                    # update the values in the original set with the predicted values
-                    # that were currently executed
-                    originalDFAsDicts[idx] = outRow
-                    updated = True
-                    # break out of the inner loop
-                    break
+    for outRow in outputForDF:
+        updated = False
+        for idx in range(len(originalDFAsDicts)):
+            if outRow["home"] == originalDFAsDicts[idx]["home"] and \
+                outRow["away"] == originalDFAsDicts[idx]["away"] and \
+                outRow["gameDate"] == originalDFAsDicts[idx]["gameDate"]:
+                # update the values in the original set with the predicted values
+                # that were currently executed
+                originalDFAsDicts[idx] = outRow
+                updated = True
+                # break out of the inner loop
+                break
 
-            if not updated:
-                outputNotFound.append(outRow)
+        if not updated:
+            outputNotFound.append(outRow)
 
-        # reset the output list of dictionaries so that all of the updates
-        # are included
-        outputForDF = originalDFAsDicts + outputNotFound
+    # reset the output list of dictionaries so that all of the updates
+    # are included
+    outputForDF = originalDFAsDicts + outputNotFound
 
     # set the data in excel file with the actual values
     pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
@@ -647,7 +670,9 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
             "gameDate": datetime(year, month, day).strftime("%Y-%m-%d"),
             "datePredicted": datetime.now().strftime("%Y-%m-%d"),
             "predictedWinner": predictedWinner,
-            "correct": False
+            # Leave the 'correct' field as None until the games are played and
+            # the user has elected to set the value using analyze functionality
+            "correct": None
         })
 
         print(
@@ -728,3 +753,72 @@ def execAnnSpecificDate(day, month, year):
         int(month),
         int(year)
     )
+
+
+def determineWinners():
+    """For each entry in the predictions file, determine if the entry has
+    a valid `correct` value. When the value is missing/None, determine the
+    winner of the game and update the `correct` value.
+    """
+    df = _readPredictionsFile()
+    if df is None:
+        logger.debug("failed to read predictions file")
+        return
+
+    dfAsDict = df.to_dict(orient='records')
+
+    gamesByDate = defaultdict(list)
+
+    for idx in range(len(dfAsDict)):
+        gamesByDate[dfAsDict[idx]['gameDate']].append(dfAsDict[idx])
+
+    for gameDate, games in gamesByDate.items():
+        # get the results from the date -> gameDate
+
+        pulledData = []
+        spGameDate = gameDate.split("-")
+        gamesPlayed = findGamesByDate(year=spGameDate[0], month=spGameDate[1], day=spGameDate[2])
+        if gamesPlayed is not None:
+            for game in gamesPlayed["games"]:
+                pulledData.append({
+                    "homeTeam": game["homeTeam"]["name"]["default"],
+                    "homeScore": game["homeTeam"]["score"],
+                    "awayTeam": game["awayTeam"]["name"]["default"],
+                    "awayScore": game["awayTeam"]["score"],
+                })
+
+        for game in games:
+            for actualGame in pulledData:
+                if actualGame["homeTeam"] in game["homeTeam"] and \
+                    actualGame["awayTeam"] in game["awayTeam"] and \
+                    game["correct"] is None:
+                    # determine the winner
+                    if actualGame["homeTeam"] in game["predictedWinner"] and \
+                         actualGame["homeScore"] > actualGame["awayScore"]:
+                        game["correct"] = True
+                    elif actualGame["awayTeam"] in game["predictedWinner"] and \
+                         actualGame["awayTeam"] > actualGame["homeScore"]:
+                        game["correct"] = True
+                    else:
+                        game["correct"] = False
+                    break # found the game, break out
+
+    filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
+    pd.DataFrame(gamesByDate).to_excel(filename)
+
+
+def analyze(*args, **kwargs):
+    """Determine the number of games that were correctly predicted. The
+    caller can pass the day, month, year in through kwargs to determine
+    the values for a specific date.
+
+    :kwargs:
+        day: day of the month (1-31)
+        month: month of the year (1-12)
+        year: year for the date to analyze. This is NOT the season.
+    :return: Percentage 0.0-100.0 of games correctly predicted.
+    """
+    df = _readPredictionsFile()
+    if df is None:
+        logger.debug("failed to read predictions file")
+        return

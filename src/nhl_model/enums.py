@@ -30,15 +30,6 @@ class EventType(Enum):
     MISSED_SHOT = 'Missed Shot'
 
 
-def eventTypeToStr(eventType):
-    '''Convert the EventType to a string'''
-    for x in EventType:
-        if x.value == eventType:
-            return x.value
-
-    return None
-
-
 class TeamSide(Enum):
     '''Simple identifier to indicate home vs away status of 
     a team during a game.
