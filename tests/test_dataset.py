@@ -1,6 +1,13 @@
 # pylint: disable=invalid-name
 # pylint: disable=missing-function-docstring
 from unittest import TestCase, mock
+from os import remove, mkdir
+from os.path import dirname, abspath, join, exists
+from datetime import datetime
+from json import loads, dumps
+from shutil import move
+from nhl_core.endpoints import MAX_GAME_NUMBER
+from mock import MockResponse
 from nhl_model.dataset import (
     parseBoxScore,
     parseBoxScoreSplit,
@@ -11,12 +18,6 @@ from nhl_model.dataset import (
     newAPIFile,
     BASE_SAVE_DIR
 )
-from nhl_core.endpoints import MAX_GAME_NUMBER
-from os.path import dirname, abspath, join, exists
-from json import loads, dumps
-from datetime import datetime
-from shutil import move
-from os import remove, mkdir
 
 
 def _movedFile(filename):
@@ -34,28 +35,11 @@ def _moveFileBack(filename, moved):
             move(f"{filename}.old", filename)
 
 
-class MockResponse:
-    '''Class to mock the behavior and results of the requests.get function
-    in the findGamesByDate function.
-    '''
-
-    def __init__(self, data, status_code):
-        '''Fill the class with the required data for a response'''
-        self.data = data
-        self.code = status_code
-
-    def read(self):
-        return self.data
-
-    def json(self):
-        return self.data
-
-
 def mocked_requests_get(*args, **kwargs):
     filename = join(dirname(abspath(__file__)), "DatasetMockData.json")
     with open(filename, "r") as jsonFile:
         jsonData = loads(jsonFile.read())
-    
+
     if jsonData is not None:
         return MockResponse(jsonData, 200)
     return MockResponse(jsonData, 400)
@@ -82,7 +66,7 @@ class DatasetTests(TestCase):
         cls.oldGameData = {
             "gameId": oldGameInfo["game"]["pk"],             
         }
-    
+
         newFile = join(dirname(abspath(__file__)), "MockDataNew.json")
         with open(newFile, "r") as jsonFile:
             cls.newJsonData = loads(jsonFile.read())
@@ -254,7 +238,7 @@ class DatasetTests(TestCase):
             with self.subTest(f"Ensuring {key} is found and correct for away team", key=key, value=value):
                 self.assertTrue(key in awayTeamData)
                 self.assertEqual(value, awayTeamData[key])
-    
+
     def test_parse_boxscore_new(self):
         '''Test the functionality of the parse box score for new datasets.'''
         _expectedResults = {
@@ -408,7 +392,7 @@ class DatasetTests(TestCase):
             with self.subTest(f"Ensuring {key} is found and correct for away team (new)", key=key, value=value):
                 self.assertTrue(key in awayTeamData)
                 self.assertEqual(value, awayTeamData[key])
-    
+
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_pull_dataset_api_new_base(self, mock_get):
         '''Test pulling the dataset with the new api.'''
@@ -456,7 +440,7 @@ class DatasetTests(TestCase):
 
         if expectedResult is None:
             self.assertIsNone(currFilename)
-        
+
         remove(currFilename)
         self.assertEqual(currFilename, expectedResult)
 
@@ -507,7 +491,6 @@ class DatasetTests(TestCase):
 
         if expectedResult is None:
             self.assertIsNone(currFilename)
-        
+
         remove(currFilename)
         self.assertEqual(currFilename, expectedResult)
-

@@ -7,6 +7,7 @@ from os import remove
 from shutil import move, copy
 from json import loads
 import pandas as pd
+from mock import MockResponse
 from nhl_model.ann import (
     CONFIG_FILE,
     correctData,
@@ -58,22 +59,6 @@ def _moveConfigFileBack(moved):
 
         if exists(_CONFIG_FILE_TEST_PATH):
             move(_CONFIG_FILE_TEST_PATH, CONFIG_FILE)
-
-class MockResponse:
-    '''Class to mock the behavior and results of the requests.get function
-    in the findGamesByDate function.
-    '''
-
-    def __init__(self, data, status_code):
-        '''Fill the class with the required data for a response'''
-        self.data = data
-        self.code = status_code
-
-    def read(self):
-        return self.data
-
-    def json(self):
-        return self.data
 
 
 def mocked_requests_get(*args, **kwargs):
