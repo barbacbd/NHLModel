@@ -66,7 +66,6 @@ class DatasetTests(TestCase):
     
     Note: The tests do NOT currently cover:
     - parseRecentData (this is currently not used)
-    - pullDatasetNewAPI 
     - generateDataset (technically this is mostly covered through the other tests)
     '''
 
