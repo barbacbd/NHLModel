@@ -225,6 +225,19 @@ def parseSeasonEvents(year):  # pylint: disable=too-many-branches
         logger.error(f"Failed to find a schedule for previous year {year-1}")
         return None, None
 
+    return getSeasonEventsFromSchedules(schedule, previousSchedule)
+
+
+def getSeasonEventsFromSchedules(schedule, previousSchedule):  # pylint: disable=too-many-branches
+    """Parse the events for the season given the json formatted season and 
+    previous season data. This will include predicting which team will win 
+    each game.
+
+    :return: home team events, away team events
+    """
+    if None in (schedule, previousSchedule):
+        return None, None
+
     homeTeamEventsPrev, awayTeamEventsPrev = parseSchedule(previousSchedule)
     totalTeamIdsPrevSeason = set(list(homeTeamEventsPrev.keys()))
     totalTeamIdsPrevSeason.update(list(awayTeamEventsPrev.keys()))

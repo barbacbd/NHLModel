@@ -3,18 +3,34 @@
 # pylint: disable=redefined-builtin
 # pylint: disable=deprecated-method
 from unittest import TestCase
-from os.path import dirname, abspath, join
+from os.path import dirname, abspath, join, exists
 from json import loads
 from collections import defaultdict
 from shutil import copytree, rmtree
+from nhl_core.endpoints import MAX_GAME_NUMBER
 from nhl_model.poisson import (
     parseSchedule,
     calculateAvgGoals,
-    calculateScores
+    calculateScores,
+    getSeasonEventsFromSchedules,
 )
 
 BADSEASON = 2004
 GOODSEASON = 2005
+TOPSEASON = 2006
+
+def mocked_schedules_get(year):
+    if year is None or year == BADSEASON:
+        return None
+
+    currDir = dirname(abspath(__file__))
+    splitDir = currDir.split("/")
+    splitDir = splitDir[:-1] + ["src", "nhl_model", "support", "schedules", f"{year}", "schedule.json"]
+    filename = "/" + join(*splitDir)
+
+    with open(filename, "rb") as jsonData:
+        return loads(jsonData.read())
+
 
 class PoissonTests(TestCase):
     '''Test cases for the Poisson functionality to the module.
@@ -25,14 +41,33 @@ class PoissonTests(TestCase):
         '''Set up the class for testing the dataset'''
         currDir = dirname(abspath(__file__))
 
+        # Grab and save the data in the GOOD SEASON
         splitDir = currDir.split("/")
-        splitDir = splitDir[:-1] + ["src", "nhl_model", "support", "schedules", "2005"]
+        splitDir = splitDir[:-1] + ["src", "nhl_model", "support", "schedules", f"{GOODSEASON}"]
         copyDir = "/" + join(*splitDir)
         cls.destDir = "/".join([currDir, f"{GOODSEASON}"])
+
+        if exists(cls.destDir):
+            rmtree(cls.destDir, ignore_errors=True)
+
         copytree(copyDir, cls.destDir)
 
         with open("/".join([cls.destDir, "schedule.json"])) as jsonData:
             cls.jsonSchedule = loads(jsonData.read())
+
+        # Grab and save the data in the TOP SEASON
+        splitDir = currDir.split("/")
+        splitDir = splitDir[:-1] + ["src", "nhl_model", "support", "schedules", f"{TOPSEASON}"]
+        copyDir = "/" + join(*splitDir)
+        cls.destDirTop = "/".join([currDir, f"{TOPSEASON}"])
+
+        if exists(cls.destDirTop):
+            rmtree(cls.destDirTop, ignore_errors=True)
+
+        copytree(copyDir, cls.destDirTop)
+
+        with open("/".join([cls.destDirTop, "schedule.json"])) as jsonData:
+            cls.jsonScheduleTop = loads(jsonData.read())
 
         return super().setUpClass()
 
@@ -164,3 +199,38 @@ class PoissonTests(TestCase):
                         value=value
                     ):
                         self.assertIsNone(value)
+
+    def test_parse_season_events_no_schedule(self):
+        '''Test when the schedule is None'''
+        parsedHomeTeamEvents, parsedAwayTeamEvents = getSeasonEventsFromSchedules(
+            None, self.jsonSchedule
+        )
+
+        self.assertIsNone(parsedHomeTeamEvents)
+        self.assertIsNone(parsedAwayTeamEvents)
+
+    def test_parse_season_events_no_previous(self):
+        '''Test when the previous schedule is None'''
+        parsedHomeTeamEvents, parsedAwayTeamEvents = getSeasonEventsFromSchedules(
+            self.jsonScheduleTop, None
+        )
+
+        self.assertIsNone(parsedHomeTeamEvents)
+        self.assertIsNone(parsedAwayTeamEvents)
+
+    def test_parse_season_events(self):
+        parsedHomeTeamEvents, parsedAwayTeamEvents = getSeasonEventsFromSchedules(
+            self.jsonScheduleTop, self.jsonSchedule
+        )
+
+        # each game is both an away and home event so there should be entries for
+        # all teams.
+        self.assertEqual(len(parsedHomeTeamEvents), len(parsedAwayTeamEvents))
+
+        total = 0
+        for key in parsedHomeTeamEvents:
+            total += len(parsedHomeTeamEvents[key])
+
+        # These schedules do NOT include the full expansion teams so the number
+        # of games should be less than max
+        self.assertLess(total, MAX_GAME_NUMBER)
