@@ -65,12 +65,13 @@ def parseSchedule(schedule):
     """
     homeTeamEvents = defaultdict(list)
     awayTeamEvents = defaultdict(list)
-    for game in schedule:
-        gameObj = Game("randomData")
-        gameObj.fromJson(game)
+    if schedule and isinstance(schedule, list):
+        for game in schedule:
+            gameObj = Game("randomData")
+            gameObj.fromJson(game)
 
-        homeTeamEvents[gameObj.homeTeamId].append(gameObj)
-        awayTeamEvents[gameObj.awayTeamId].append(gameObj)
+            homeTeamEvents[gameObj.homeTeamId].append(gameObj)
+            awayTeamEvents[gameObj.awayTeamId].append(gameObj)
 
     return homeTeamEvents, awayTeamEvents
 
