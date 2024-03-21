@@ -49,5 +49,5 @@ jobs:
           popd
           git ls-files --modified | xargs git add
           git commit -m "[Automated Commit]: Adding code coverage information from unit tests." || echo "no changes to commit"
-          git remote set-url --push origin https://barbacbd:$token@github.com/barbacbd/nautical || echo "no need to set remote"
+          git remote set-url --push origin https://barbacbd:$token@github.com/barbacbd/NHLModel || echo "no need to set remote"
           git push --force || echo "nothing to push"
