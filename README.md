@@ -8,6 +8,32 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/barbacbd/NHLModel/main)](https://github.com/barbacbd/NHLModel/commit/) ![Code Coverage](https://raw.githubusercontent.com/barbacbd/NHLModel/main/.cov/coverage-badge.svg)
 </h1>
 
+# Table of Contents
+
+  * [Artificial Neural Network](#artificial-neural-network)
+    * [Saved Data](#saved-data)
+    * [Generating Datasets](#generating-datasets)
+    * [Training](#training)
+      * [Layers](#layers)
+    * [Compare Functions](#compare-functions)
+      * [Direct](#direct)
+      * [Averages](#averages)
+    * [Feature Selection](#feature-selection)
+      * [MRMR](#mrmr-feature-selection)
+      * [F1 Scores](#f1-scores)
+    * [Predicting Future Games](#predicting-future-games)
+  * [Poisson Distribution](#nhl-score-prediction---poisson-distribution)
+    * [Poisson Requirements](#requirements)
+    * [Law of Averages](#law-of-averages)
+    * [Limitations](#limitations)
+    * [Predicting Scores](#predicting-scores)
+    * [Cumulative Distribution Function](#cumulative-distribution-function-cdf)
+    * [Probability Distribution Function](#probability-density-function-pdf)
+    * [Functionality](#functionality)
+    * [Game Example](#example-of-theoretical-game)
+    * [Predicting Scores](#predicting-the-scores-for-a-season)
+    * [Season Prediction Example](#example-of-season-prediction)
+
 ## Artificial Neural Network
 
 The artificial neural network is used to create a model for predicting the outcomes of future NHL games based on previous games. 
