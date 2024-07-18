@@ -108,8 +108,9 @@ def _parseInternalBoxScoreTeamsNew(teamDict):
     for key, value in _staticBoxScoreTeamDataNew.items():
         ret[key] = _parseInternalTeamData(teamDict, value)
 
-    ppData = _parsePPDataNew(teamDict["powerPlayConversion"])
-    ret.update(ppData)
+    if "powerPlayConversion" in teamDict:
+        ppData = _parsePPDataNew(teamDict["powerPlayConversion"])
+        ret.update(ppData)
 
     return ret
 
@@ -239,6 +240,31 @@ def parseBoxScoreSplit(boxscore):
     return homeTeamData, awayTeamData
 
 
+def _retrieve_value(base, value, returnValue=False, defaultValue=None):
+    """Attempt to retrieve an embedded value.
+
+    :param base: The base object (should be a dictionary).
+    :param value: A list or single value of variable names that may be
+    found embedded in the object.
+    :param returnValue: When True return the value if found (None otherwise). 
+    When False the return value is True/False based on if the value exists or not.
+    :param defaultValue: value that will be returned if the value cannot be found 
+    (this is only valid when returnValue is True).
+    """
+    vars = value
+    if not isinstance(vars, list):
+        vars = [vars]
+    
+    tmp = base
+
+    for var in vars:
+        if var not in tmp:
+            return False if not returnValue else defaultValue
+        tmp = tmp[var]
+    
+    return True if not returnValue else tmp
+
+
 def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-branches
     """In the new version of the API, the player data was added to the
     box score. Parse this data for each of the teams. In the original API
@@ -263,6 +289,7 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
     - powerPlaySavePercentage
     - shortHandedSavePercentage
     - evenStrengthSavePercentage
+    - shortHandedGoalsAgainst
 
     The following data is calculated and added to the final dict:
     - numGoalies
@@ -290,7 +317,8 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
         "savePercentage": 0,
         "powerPlaySavePercentage": 0,
         "shortHandedSavePercentage": 0,
-        "evenStrengthSavePercentage": 0
+        "evenStrengthSavePercentage": 0,
+        "shortHandedGoalsAgainst": 0
     }
 
     for playerType, playerValues in teamDict.items():
@@ -301,12 +329,16 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
                 timeOnIce = int(spTOI[0]) * 60 + int(spTOI[1])
                 if timeOnIce > 0:
                     numPlayers += 1
-                    skaterDict['assists'] += playerData["assists"]
-                    skaterDict['shortHandedGoals'] += playerData["shorthandedGoals"]
+                    skaterDict['assists'] += _retrieve_value(
+                        playerData, ["assists"], True, 0)
+                    skaterDict['shortHandedGoals'] += _retrieve_value(
+                        playerData, ["shorthandedGoals"], True, 0)
                     skaterDict["powerPlayAssists"] += \
-                        (playerData["powerPlayPoints"] - playerData["powerPlayGoals"])
+                        (_retrieve_value(playerData, ["powerPlayPoints"], True, 0) - 
+                         _retrieve_value(playerData, ["powerPlayGoals"], True, 0))
                     skaterDict["shortHandedAssists"] += \
-                        (playerData["shPoints"] - playerData["shorthandedGoals"])
+                        (_retrieve_value(playerData, ["shPoints"], True, 0) - 
+                         _retrieve_value(playerData, ["shorthandedGoals"], True, 0))
 
         elif playerType in ("goalies",):
             for playerData in playerValues:
@@ -366,15 +398,26 @@ def parseBoxScoreNew(boxscore):
     for the neural net dataset. The boxscore differs from year to year, but the
     main data points will be present.
     """
+    def _verify_exists(bs, list_of_vars):
+        tmp = bs
+        for var in list_of_vars:
+            if var not in tmp:
+                return False
+            tmp = tmp[var]
+        return True
+
     homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
     awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
 
-    homeTeamData.update(_parseInternalBoxScorePlayersNew(
-        boxscore["boxscore"]["playerByGameStats"]["homeTeam"]
-    ))
-    awayTeamData.update(_parseInternalBoxScorePlayersNew(
-        boxscore["boxscore"]["playerByGameStats"]["awayTeam"]
-    ))
+    if _verify_exists(boxscore, ["playerByGameStats", "homeTeam"]):
+        homeTeamData.update(_parseInternalBoxScorePlayersNew(
+            boxscore["playerByGameStats"]["homeTeam"]
+        ))
+
+    if _verify_exists(boxscore, ["playerByGameStats", "awayTeam"]):
+        awayTeamData.update(_parseInternalBoxScorePlayersNew(
+            boxscore["playerByGameStats"]["awayTeam"]
+        ))
 
     ret = {}
     for k, v in homeTeamData.items():
@@ -382,11 +425,11 @@ def parseBoxScoreNew(boxscore):
     for k, v in awayTeamData.items():
         ret[f"at{k.capitalize()}"] = v
 
-    ret.update({
-        "gameId": boxscore["id"], 
-        "winner": bool(ret["htGoals"] > ret["atGoals"])
-    })
-
+    if "id" in boxscore:
+        ret.update({
+            "gameId": boxscore["id"], 
+            "winner": bool(ret["htGoals"] > ret["atGoals"])
+        })
 
     return ret
 

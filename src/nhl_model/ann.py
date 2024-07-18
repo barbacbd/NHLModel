@@ -672,7 +672,10 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
             "predictedWinner": predictedWinner,
             # Leave the 'correct' field as None until the games are played and
             # the user has elected to set the value using analyze functionality
-            "correct": None
+            "correct": None,
+            # Leave the `winner` field as None until the games are played. Technically
+            # the winner field and the 'correct' field are redundant. 
+            "winner": None,
         })
 
         print(
@@ -791,16 +794,20 @@ def determineWinners():
             for actualGame in pulledData:
                 if actualGame["homeTeam"] in game["homeTeam"] and \
                     actualGame["awayTeam"] in game["awayTeam"] and \
-                    game["correct"] is None:
+                    None in (game["correct"], game["winner"]):
                     # determine the winner
                     if actualGame["homeTeam"] in game["predictedWinner"] and \
                          actualGame["homeScore"] > actualGame["awayScore"]:
                         game["correct"] = True
                     elif actualGame["awayTeam"] in game["predictedWinner"] and \
-                         actualGame["awayTeam"] > actualGame["homeScore"]:
+                         actualGame["awayScore"] > actualGame["homeScore"]:
                         game["correct"] = True
                     else:
                         game["correct"] = False
+
+                    game["winner"] = actualGame["homeTeam"] if \
+                        actualGame["homeScore"] > actualGame["awayScore"] else actualGame["awayTeam"]
+
                     break # found the game, break out
 
     filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])

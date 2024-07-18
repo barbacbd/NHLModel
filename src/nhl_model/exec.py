@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 from logging import getLogger, basicConfig
 from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate
-from nhl_model.dataset import generateDataset
+from nhl_model.dataset import generateDataset, pullDatasetNewAPI
 from nhl_model.poisson import execPoisson
 
 
@@ -31,11 +31,11 @@ def main():
     # end and start year to the current season (ex. 2022-2023 season use 2022).
     generateSubParser = mainSubParsers.add_parser('generate', help='Generate Dataset')
     generateSubParser.add_argument(
-        '-e', '--endYear', help='Season year where the dataset should end', 
+        '-e', '--endYear', type=int, help='Season year where the dataset should end', 
         default=datetime.now().year
     )
     generateSubParser.add_argument(
-        '-s', '--startYear', help='Season year where the dataset should begin', 
+        '-s', '--startYear', type=int, help='Season year where the dataset should begin', 
         default=datetime.now().year
     )
     generateSubParser.add_argument(
