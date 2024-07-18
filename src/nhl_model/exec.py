@@ -1,8 +1,8 @@
 import argparse
 from datetime import datetime
 from logging import getLogger, basicConfig
-from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate
-from nhl_model.dataset import generateDataset, pullDatasetNewAPI
+from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate, determineWinners
+from nhl_model.dataset import generateDataset
 from nhl_model.poisson import execPoisson
 
 
@@ -68,6 +68,10 @@ def main():
         '-y', '--year', help='Year for prediction', default=datetime.now().year
     )
 
+    mainSubParsers.add_parser(
+        'analyze', help='Analyze the output file and set the winner information.'
+    )
+
     args = parser.parse_args()
 
     # set the logger
@@ -79,6 +83,8 @@ def main():
     if args.execType == 'generate':
         validFiles = findFiles(args.version, args.startYear, args.endYear)
         generateDataset(args.version, args.startYear, args.endYear, validFiles=validFiles)
+    elif args.execType == 'analyze':
+        determineWinners()
     elif args.execType == 'ann':
         execAnn(args.override)
     elif args.execType == 'poisson':

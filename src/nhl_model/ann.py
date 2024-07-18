@@ -249,7 +249,7 @@ def findGamesByDate(day, month, year):
         return None
 
     if "games" not in todaysGameData or len(todaysGameData["games"]) == 0:
-        logger.error(f"no games foud for today {searchDate}")
+        logger.error(f"no games found for today {searchDate}")
         return None
 
     return todaysGameData
