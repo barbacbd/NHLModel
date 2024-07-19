@@ -430,6 +430,10 @@ def parseBoxScoreNew(boxscore):
             "gameId": boxscore["id"], 
             "winner": bool(ret["htGoals"] > ret["atGoals"])
         })
+    
+    if "gameDate" in boxscore:
+        dateInfo = boxscore["gameDate"].split("-")
+        ret.update({"year": dateInfo[0], "month": dateInfo[1], "day": dateInfo[2]})
 
     return ret
 

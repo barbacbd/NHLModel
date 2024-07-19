@@ -576,17 +576,20 @@ def _setPredictions(todaysData):
 
     originalDF = _readPredictionsFile()
     if originalDF is None:
-        logger.debug("failed to read predictions file")
+        logger.debug("failed to read predictions file, setting current data")
+        print("here")
+        pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
         return
 
-    originalDFAsDicts = originalDF.to_dict(orient='records')
+    originalDFAsDicts = originalDF.to_dict(orient='columns') #records
+    print(originalDFAsDicts)
     outputNotFound = []
 
     for outRow in outputForDF:
         updated = False
         for idx in range(len(originalDFAsDicts)):
-            if outRow["home"] == originalDFAsDicts[idx]["home"] and \
-                outRow["away"] == originalDFAsDicts[idx]["away"] and \
+            if outRow["homeTeam"] == originalDFAsDicts[idx]["homeTeam"] and \
+                outRow["awayTeam"] == originalDFAsDicts[idx]["awayTeam"] and \
                 outRow["gameDate"] == originalDFAsDicts[idx]["gameDate"]:
                 # update the values in the original set with the predicted values
                 # that were currently executed
@@ -665,8 +668,8 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
 
         predictedWinner = homeTeam if predictedOutcomes[index] == 1 else awayTeam
         outputForDF.append({
-            "home": homeTeam,
-            "away": awayTeam,
+            "homeTeam": homeTeam,
+            "awayTeam": awayTeam,
             "gameDate": datetime(year, month, day).strftime("%Y-%m-%d"),
             "datePredicted": datetime.now().strftime("%Y-%m-%d"),
             "predictedWinner": predictedWinner,
@@ -780,7 +783,10 @@ def determineWinners():
 
         pulledData = []
         spGameDate = gameDate.split("-")
-        gamesPlayed = findGamesByDate(year=spGameDate[0], month=spGameDate[1], day=spGameDate[2])
+        gamesPlayed = findGamesByDate(
+            year=int(
+                spGameDate[0]), month=int(spGameDate[1]), day=int(spGameDate[2])
+            )
         if gamesPlayed is not None:
             for game in gamesPlayed["games"]:
                 pulledData.append({
@@ -793,8 +799,7 @@ def determineWinners():
         for game in games:
             for actualGame in pulledData:
                 if actualGame["homeTeam"] in game["homeTeam"] and \
-                    actualGame["awayTeam"] in game["awayTeam"] and \
-                    None in (game["correct"], game["winner"]):
+                    actualGame["awayTeam"] in game["awayTeam"]:
                     # determine the winner
                     if actualGame["homeTeam"] in game["predictedWinner"] and \
                          actualGame["homeScore"] > actualGame["awayScore"]:
@@ -811,7 +816,13 @@ def determineWinners():
                     break # found the game, break out
 
     filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
-    pd.DataFrame(gamesByDate).to_excel(filename)
+    if isinstance(gamesByDate, (defaultdict, dict)):
+        combined = []
+        for _, value in gamesByDate.items():
+            combined.extend(value)
+        pd.DataFrame.from_records(combined).to_excel(filename)
+    else:
+        pd.DataFrame(gamesByDate).to_excel(filename)
 
 
 def analyze(*args, **kwargs):
