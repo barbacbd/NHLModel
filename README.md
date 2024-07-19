@@ -148,6 +148,23 @@ The same model that is created through this process can be used to predict games
 
 The work here was abandoned because past games are easy to predict when all of the data is available. Predicting future games requires that the current data be used as a reference for inputs to predict future values. For instance, we may not not know the number of shots taken will be but we can average the number of shots taken and use that as input. 
 
+### Analyzing 
+
+The `predictions.xlsx` file will contain all of the predictions that have been made. Once those games are played, the data from the games can be retrieved and compared against the predictions. The `predictions.xlsx` file will be updated with the values to indicate how the prediction went.
+
+The following shows the data before analyzing the games from 10/14/2023:
+
+| homeTeam | awayTeam | gameDate | datePredicted | predictedWinner | correct | winner |
+| -------- | -------- | -------- | ------------- | --------------- | ------- | ------ |
+| Ottawa Senators | Philadelphia Flyers |	2023-10-14 | 2024-07-19 |	Ottawa Senators | | |
+
+
+The following shows the data after analyzing the games from 10/14/2023:
+
+| homeTeam | awayTeam | gameDate | datePredicted | predictedWinner | correct | winner |
+| -------- | -------- | -------- | ------------- | --------------- | ------- | ------ |
+| Ottawa Senators | Philadelphia Flyers |	2023-10-14 | 2024-07-19 |	Ottawa Senators | TRUE | Senators |
+
 ## NHL Score Prediction - Poisson Distribution
 
 Poisson distributions fall under the category of discrete probability distributions. The outcome of the Poisson distribution is the number of times that an event occurs. Poisson distributions can be utilized to predict the number of events occurring within a given time interval.
