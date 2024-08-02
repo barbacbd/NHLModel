@@ -240,31 +240,6 @@ def parseBoxScoreSplit(boxscore):
     return homeTeamData, awayTeamData
 
 
-def _retrieve_value(base, value, returnValue=False, defaultValue=None):
-    """Attempt to retrieve an embedded value.
-
-    :param base: The base object (should be a dictionary).
-    :param value: A list or single value of variable names that may be
-    found embedded in the object.
-    :param returnValue: When True return the value if found (None otherwise). 
-    When False the return value is True/False based on if the value exists or not.
-    :param defaultValue: value that will be returned if the value cannot be found 
-    (this is only valid when returnValue is True).
-    """
-    vars = value
-    if not isinstance(vars, list):
-        vars = [vars]
-    
-    tmp = base
-
-    for var in vars:
-        if var not in tmp:
-            return False if not returnValue else defaultValue
-        tmp = tmp[var]
-    
-    return True if not returnValue else tmp
-
-
 def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-branches
     """In the new version of the API, the player data was added to the
     box score. Parse this data for each of the teams. In the original API
@@ -329,16 +304,12 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
                 timeOnIce = int(spTOI[0]) * 60 + int(spTOI[1])
                 if timeOnIce > 0:
                     numPlayers += 1
-                    skaterDict['assists'] += _retrieve_value(
-                        playerData, ["assists"], True, 0)
-                    skaterDict['shortHandedGoals'] += _retrieve_value(
-                        playerData, ["shorthandedGoals"], True, 0)
-                    skaterDict["powerPlayAssists"] += \
-                        (_retrieve_value(playerData, ["powerPlayPoints"], True, 0) - 
-                         _retrieve_value(playerData, ["powerPlayGoals"], True, 0))
-                    skaterDict["shortHandedAssists"] += \
-                        (_retrieve_value(playerData, ["shPoints"], True, 0) - 
-                         _retrieve_value(playerData, ["shorthandedGoals"], True, 0))
+                    skaterDict['assists'] += playerData.get("assists", 0)
+                    skaterDict['shortHandedGoals'] += playerData.get("shorthandedGoals", 0)
+                    skaterDict["powerPlayAssists"] += playerData.get("powerPlayPoints", 0) - \
+                         playerData.get("powerPlayGoals", 0)
+                    skaterDict["shortHandedAssists"] += playerData.get("shPoints", 0) - \
+                        playerData.get("shorthandedGoals", 0)
 
         elif playerType in ("goalies",):
             for playerData in playerValues:
@@ -398,9 +369,9 @@ def parseBoxScoreNew(boxscore):
     for the neural net dataset. The boxscore differs from year to year, but the
     main data points will be present.
     """
-    def _verify_exists(bs, list_of_vars):
+    def _verifyExists(bs, listOfVars):
         tmp = bs
-        for var in list_of_vars:
+        for var in listOfVars:
             if var not in tmp:
                 return False
             tmp = tmp[var]
@@ -409,14 +380,14 @@ def parseBoxScoreNew(boxscore):
     homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
     awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
 
-    if _verify_exists(boxscore, ["playerByGameStats", "homeTeam"]):
+    if _verifyExists(boxscore, ["boxscore", "playerByGameStats", "homeTeam"]):
         homeTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["playerByGameStats"]["homeTeam"]
+            boxscore["boxscore"]["playerByGameStats"]["homeTeam"]
         ))
 
-    if _verify_exists(boxscore, ["playerByGameStats", "awayTeam"]):
+    if _verifyExists(boxscore, ["boxscore", "playerByGameStats", "awayTeam"]):
         awayTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["playerByGameStats"]["awayTeam"]
+            boxscore["boxscore"]["playerByGameStats"]["awayTeam"]
         ))
 
     ret = {}
@@ -430,7 +401,7 @@ def parseBoxScoreNew(boxscore):
             "gameId": boxscore["id"], 
             "winner": bool(ret["htGoals"] > ret["atGoals"])
         })
-    
+
     if "gameDate" in boxscore:
         dateInfo = boxscore["gameDate"].split("-")
         ret.update({"year": dateInfo[0], "month": dateInfo[1], "day": dateInfo[2]})
@@ -704,7 +675,7 @@ def generateDataset(version, startYear, endYear, validFiles=[]):
 
             # remove all data after it is loaded into memory
             logger.debug(f"removing file {filename}")
-            remove(filename)
+            # remove(filename)
 
             # grab all boxscores from all files that were created
             if jsonData:

@@ -255,7 +255,7 @@ class DatasetTests(TestCase):
             "htPowerplaygoals": 0,
             "htPowerplayopportunities": 4,
             "htAssists": 8,
-            "htShorthandedgoals": 0,
+            "htShorthandedgoalsagainst": 0,
             "htShorthandedassists": 0,
             "htPowerplayassists": 0,
             "htSaves": 30,
@@ -284,7 +284,7 @@ class DatasetTests(TestCase):
             "atPowerplaygoals": 0,
             "atPowerplayopportunities": 4,
             "atAssists": 2,
-            "atShorthandedgoals": 0,
+            "atShorthandedgoalsagainst": 0,
             "atShorthandedassists": 0,
             "atPowerplayassists": 0,
             "atSaves": 28,
@@ -429,20 +429,22 @@ class DatasetTests(TestCase):
             "boxScores": readData["boxScores"]
         }
 
-        with open(expectedResult, "w+") as jsonFile:
-            jsonFile.write(dumps(jsonData, indent=2))
+        if expectedResult is not None:
+            with open(expectedResult, "w+") as jsonFile:
+                jsonFile.write(dumps(jsonData, indent=2))
 
-        currFilename = pullDatasetNewAPI(year)
+            currFilename = pullDatasetNewAPI(year)
 
-        # move these back before running tests to ensure these are reset
-        _moveFileBack(expectedResult, movedCurrFile)
-        _moveFileBack(RecoveryFilename, movedRecoveryFile)
+            # move these back before running tests to ensure these are reset
+            _moveFileBack(expectedResult, movedCurrFile)
+            _moveFileBack(RecoveryFilename, movedRecoveryFile)
 
-        if expectedResult is None:
-            self.assertIsNone(currFilename)
+            if expectedResult is None:
+                self.assertIsNone(currFilename)
 
-        remove(currFilename)
-        self.assertEqual(currFilename, expectedResult)
+            remove(currFilename)
+            self.assertEqual(currFilename, expectedResult)
+
 
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_pull_dataset_api_new_negative(self, mock_get):
@@ -480,17 +482,18 @@ class DatasetTests(TestCase):
             "boxScores": readData["boxScores"]
         }
 
-        with open(expectedResult, "w+") as jsonFile:
-            jsonFile.write(dumps(jsonData, indent=2))
+        if expectedResult is not None:
+            with open(expectedResult, "w+") as jsonFile:
+                jsonFile.write(dumps(jsonData, indent=2))
 
-        currFilename = pullDatasetNewAPI(year)
+            currFilename = pullDatasetNewAPI(year)
 
-        # move these back before running tests to ensure these are reset
-        _moveFileBack(expectedResult, movedCurrFile)
-        _moveFileBack(RecoveryFilename, movedRecoveryFile)
+            # move these back before running tests to ensure these are reset
+            _moveFileBack(expectedResult, movedCurrFile)
+            _moveFileBack(RecoveryFilename, movedRecoveryFile)
 
-        if expectedResult is None:
-            self.assertIsNone(currFilename)
+            if expectedResult is None:
+                self.assertIsNone(currFilename)
 
-        remove(currFilename)
-        self.assertEqual(currFilename, expectedResult)
+            remove(currFilename)
+            self.assertEqual(currFilename, expectedResult)

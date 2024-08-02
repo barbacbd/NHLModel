@@ -677,7 +677,7 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
             # the user has elected to set the value using analyze functionality
             "correct": None,
             # Leave the `winner` field as None until the games are played. Technically
-            # the winner field and the 'correct' field are redundant. 
+            # the winner field and the 'correct' field are redundant.
             "winner": None,
         })
 
@@ -839,4 +839,3 @@ def analyze(*args, **kwargs):
     df = _readPredictionsFile()
     if df is None:
         logger.debug("failed to read predictions file")
-        return
