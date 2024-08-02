@@ -22,6 +22,8 @@
       * [MRMR](#mrmr-feature-selection)
       * [F1 Scores](#f1-scores)
     * [Predicting Future Games](#predicting-future-games)
+    * [Predicting Past Games](#predicting-past-games)
+    * [Analyzing](#analyzing)
   * [Poisson Distribution](#nhl-score-prediction---poisson-distribution)
     * [Poisson Requirements](#requirements)
     * [Law of Averages](#law-of-averages)
