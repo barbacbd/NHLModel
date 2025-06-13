@@ -10,7 +10,7 @@ authors = [
 description = "Package to create a model that can be used to predict the result of NHL games."
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.8,<3.13"
 keywords = [
     "python",
     "machine-learning",
@@ -75,5 +75,3 @@ nhl-predict = "nhl_model.exec:main"
     'nhl_model/support/schedules/2022/*.json',
     'nhl_model/support/NHLTeams.json',
 ]
-
-

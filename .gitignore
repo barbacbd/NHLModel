@@ -1,0 +1,3 @@
+build/*
+venv*
+src/nhl_model.egg-info
