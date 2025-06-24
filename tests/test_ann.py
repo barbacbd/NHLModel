@@ -263,7 +263,7 @@ class ANNClassTests(TestCase):
                 f"Testing prepare predictions {compareFunction.name} for today", 
                 compareFunction=compareFunction
             ):
-                preparedDf = prepareDataForPredictions(
+                preparedDf = prepareDataForPredictionsByDate(
                     filename,
                     compareFunction,
                     today.day,
@@ -302,7 +302,7 @@ class ANNClassTests(TestCase):
                 f"Testing prepare predictions {compareFunction.name} for other date", 
                 compareFunction=compareFunction
             ):
-                preparedDf = prepareDataForPredictions(
+                preparedDf = prepareDataForPredictionsByDate(
                     filename,
                     compareFunction,
                     day,

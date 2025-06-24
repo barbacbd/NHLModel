@@ -3,7 +3,10 @@ from datetime import datetime
 from logging import getLogger, basicConfig
 from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate, determineWinners
 from nhl_model.dataset import generateDataset
+from nhl_model.playoffs import getPlayoffMetadata
 from nhl_model.poisson import execPoisson
+
+from json import dumps
 
 
 def main():
@@ -42,6 +45,12 @@ def main():
         '-v', '--version', help='Version of the api where data will be pulled', 
         default='new', choices=['old', 'new'],
     )
+    # This argument is intended to be used to drop the information when the dataset
+    # will be predicted rather than used for prediction.
+    generateSubParser.add_argument(
+        '--drop_score_data', help='When true, drop the scores and winner information.',
+        action='store_true'
+    )
 
     # Poisson distribution is used to predict the winner of a specific game based on the
     # number of goals that each team will likely score during the game. This method uses
@@ -72,6 +81,19 @@ def main():
         'analyze', help='Analyze the output file and set the winner information.'
     )
 
+    # This form of execution will attempt to predict the winner(s) for a specific round
+    # of the playoffs.
+    playoffSubParser = mainSubParsers.add_parser(
+        'playoffs', help='Predict the series winner(s) for NHL playoffs.'
+    )
+    playoffSubParser.add_argument(
+        '-r', '--round', choices=[1, 2, 3, 4], default=1, type=int, 
+        help='Round of the playoffs to predict.'
+    )
+    playoffSubParser.add_argument(
+        '-y', '--year', help='Year for the playoff prediction', default=datetime.now().year
+    )
+
     args = parser.parse_args()
 
     # set the logger
@@ -82,7 +104,8 @@ def main():
     # Follow the imports to see what these functions actually do.
     if args.execType == 'generate':
         validFiles = findFiles(args.version, args.startYear, args.endYear)
-        generateDataset(args.version, args.startYear, args.endYear, validFiles=validFiles)
+        generateDataset(args.version, args.startYear, args.endYear, 
+            validFiles=validFiles, drop_score_data=args.drop_score_data)
     elif args.execType == 'analyze':
         determineWinners()
     elif args.execType == 'ann':
@@ -91,6 +114,15 @@ def main():
         execPoisson(args.year)
     elif args.execType == 'date':
         execAnnSpecificDate(args.day, args.month, args.year)
+    elif args.execType == 'playoffs':
+        metadata = getPlayoffMetadata(args.year, args.round)
+        output = execAnn(override=False, playoffData=metadata)
+        for letter in output:
+            winner = max(output[letter], key=output[letter].get)
+            loser = min(output[letter], key=output[letter].get)
+            print(f"Predicting {winner} defeats {loser} {output[letter][winner]} - "
+                f"{output[letter][loser]} in series {args.round}.{letter}")
+
 
 if __name__ == '__main__':
     main()

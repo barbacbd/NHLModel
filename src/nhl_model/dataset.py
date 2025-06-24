@@ -10,6 +10,11 @@ from nhl_core.endpoints import MAX_GAME_NUMBER
 from nhl_model.enums import Version
 from nhl_model.poisson import parseSeasonEvents
 
+# Each of the playoff rounds consists of a maximum of 7 games
+MAX_PLAYOFF_GAMES_PER_SEQUENCE = 7
+# There are a maximum number of 4 Rounds
+# The number of match ups is round dependent equivalent to 2^((MAX_PLAYOFF_ROUNDS-round))
+MAX_PLAYOFF_ROUNDS = 4
 
 BASE_SAVE_DIR = "/tmp/nhl_model"
 
@@ -517,11 +522,38 @@ def parseRecentData(data, maxRecords=None, gameType=""):
     return wins, losses, winPercent, streak
 
 
-def _createEndpoint(year, gameNum):
+def _createEndpoint(year, gameNum, gameType=2):
     """Create an endpoint for a box score of a specific game using the new API.
     """
-    gameId = "{}02{}".format(year, str(gameNum).zfill(4))
+    gameId = "{}{}{}".format(year, str(gameType).zfill(2), str(gameNum).zfill(4))
     return "https://api-web.nhle.com/v1/gamecenter/{}/boxscore".format(gameId)
+
+
+def pullPlayoffDataNewAPI(year):
+    """
+    for playoff games (03), the
+        second digit gives the round of the playoffs
+        third digit specifies the match-up
+        fourth digit specifies the game (out of 7)
+    """
+    playoff_game_data = {}
+    for round in range(1, MAX_PLAYOFF_ROUNDS+1):
+        matchups = 2**(MAX_PLAYOFF_ROUNDS-round)
+        for matchup in range(1, matchups+1):
+           for game in range(1, MAX_PLAYOFF_GAMES_PER_SEQUENCE+1):
+
+                gameid = "0{}{}{}".format(round, matchup, game)
+
+                try:
+                    # playoff games are always a value of 03 or 3
+                    endpointPath = _createEndpoint(year, gameid, gameType=3)
+                    logger.debug(f"Looking for platyoff endpoint {endpointPath}")
+                    jsonRequest = get(endpointPath).json()
+
+                    playoff_game_data[gameid] = jsonRequest
+                except:
+                    # assuming that the endpoint could not be reached so don't continue processing
+                    logger.debug("No playoff data received from request.")
 
 
 def pullDatasetNewAPI(year):
@@ -620,7 +652,7 @@ def pullDatasetNewAPI(year):
     return currYearFilename
 
 
-def generateDataset(version, startYear, endYear, validFiles=[]):
+def generateDataset(version, startYear, endYear, validFiles=[], drop_score_data=False):
     """Generate the Dataset that will be used as input to the neural net. This
     ultimately becomes the training data for the model. 
     """
@@ -684,6 +716,9 @@ def generateDataset(version, startYear, endYear, validFiles=[]):
 
     # generate the dataframe and add to a spreadsheet
     df = pd.DataFrame(totalData)
+    if drop_score_data:
+        logger.debug("Dropping score data from the dataset")
+        df = df.drop(columns=['winner'], errors='ignore')
 
     datasetFilename = newAPIFile(f"ANNDataset-{startYear}-{endYear}.xlsx")
 

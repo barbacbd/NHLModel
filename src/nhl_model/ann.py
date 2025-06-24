@@ -463,7 +463,28 @@ def createModel(analysisFile, featureSelection, **kwargs):
     return model
 
 
-def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year):
+def prepareDataForPredictionsByDate(predictFile, comparisonFunction, day, month, year):
+    """Prepare the data for predicting the outcomes of the games that will be played today.
+    
+    :param predictFile: Filename of the all of the data to be used as input for predictions.
+    Generally that includes all of the data from the current year, but as long as the data is
+    formatted to match that of the input to the model, then this could include data over any
+    specified period of time. 
+
+    :param comparisonFunction: Type of function used for comparing data. See the enumeration
+    `CompareFunction` above for more information.
+
+    :return: Dataframe containing records for the home and away teams that will play today.
+    """
+    todaysGameData = findGamesByDate(day, month, year)
+    if not todaysGameData:
+        logger.error("failed to find todays game data")
+        return None
+
+    return prepareDataForPredictions(predictFile, comparisonFunction, todaysGameData)
+
+
+def prepareDataForPredictions(predictFile, comparisonFunction, gameData):
     """Prepare the data for predicting the outcomes of the games that will be played today.
     
     :param predictFile: Filename of the all of the data to be used as input for predictions.
@@ -481,20 +502,15 @@ def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year)
     predictDF = pd.read_excel(predictFile)
     predictDF, _ = correctData(predictDF)
 
-    todaysGameData = findGamesByDate(day, month, year)
-    if not todaysGameData:
-        logger.error("failed to find todays game data")
-        return None
-
     if comparisonFunction == CompareFunction.AVERAGES:
         dataPointDF = _createAverages(predictDF)
 
         futrData = []
-        for game in todaysGameData["games"]:
+        for game in gameData["games"]:
             homeTeamId = game['homeTeam']['id']
             awayTeamId = game['awayTeam']['id']
             logger.debug(
-                f"Creating data for today: home = {homeTeamId}, away = {awayTeamId}"
+                f"Creating data for game: home = {homeTeamId}, away = {awayTeamId}"
             )
             htRecord = dataPointDF.loc[(dataPointDF['htTeamid']==game['homeTeam']['id'])]
             atRecord = dataPointDF.loc[(dataPointDF['atTeamid']==game['awayTeam']['id'])]
@@ -512,10 +528,10 @@ def prepareDataForPredictions(predictFile, comparisonFunction, day, month, year)
         dataPointDF = _createHeadToHead(predictDF)
 
         futrData = []
-        for game in todaysGameData["games"]:
+        for game in gameData["games"]:
             homeTeamId = game['homeTeam']['id']
             awayTeamId = game['awayTeam']['id']
-            logger.debug(f"Creating data for today: home = {homeTeamId}, away = {awayTeamId}")
+            logger.debug(f"Creating data for game: home = {homeTeamId}, away = {awayTeamId}")
             record = dataPointDF.loc[
                 (dataPointDF['htTeamid']==homeTeamId) & (dataPointDF['atTeamid']==awayTeamId)
             ]
@@ -558,7 +574,7 @@ def _readPredictionsFile():
     filename = path_join(*[BASE_SAVE_DIR, "predictions.xlsx"])
 
     if not exists(filename):
-        logger.debug("failed to find file: {filename}")
+        logger.debug(f"failed to find file: {filename}")
         return
 
     df = pd.read_excel(filename)
@@ -581,16 +597,16 @@ def _setPredictions(todaysData):
         pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
         return
 
-    originalDFAsDicts = originalDF.to_dict(orient='columns') #records
+    originalDFAsDicts = originalDF.to_dict(orient='list') #records
     print(originalDFAsDicts)
     outputNotFound = []
 
     for outRow in outputForDF:
         updated = False
         for idx in range(len(originalDFAsDicts)):
-            if outRow["homeTeam"] == originalDFAsDicts[idx]["homeTeam"] and \
-                outRow["awayTeam"] == originalDFAsDicts[idx]["awayTeam"] and \
-                outRow["gameDate"] == originalDFAsDicts[idx]["gameDate"]:
+            if outRow["homeTeam"] == originalDFAsDicts["homeTeam"][idx] and \
+                outRow["awayTeam"] == originalDFAsDicts["awayTeam"][idx] and \
+                outRow["gameDate"] == originalDFAsDicts["gameDate"][idx]:
                 # update the values in the original set with the predicted values
                 # that were currently executed
                 originalDFAsDicts[idx] = outRow
@@ -635,7 +651,7 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         logger.critical("failed to access features")
         return
 
-    preparedDF = prepareDataForPredictions(
+    preparedDF = prepareDataForPredictionsByDate(
         predictFile=predictionFile,
         comparisonFunction=comparisonFunction,
         day=day,
@@ -662,9 +678,28 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
     todaysGameData = findGamesByDate(day, month, year)
     outputForDF = []
 
+    print(dumps(todaysGameData, indent=2))
+
     for index, game in enumerate(todaysGameData["games"]):
-        homeTeam = [x["fullName"] for x in teams if x["id"] == game['homeTeam']['id']][0]
-        awayTeam = [x["fullName"] for x in teams if x["id"] == game['awayTeam']['id']][0]
+        print("homeTeam data")
+        for x in teams:
+            if x['id'] == game['homeTeam']['id']:
+                print(x['fullName'])
+        print("awayTeam data")
+        for x in teams:
+            if x['id'] == game['awayTeam']['id']:
+                print(x['fullName'])
+        homeTeam = [x["fullName"] for x in teams if x["id"] == game['homeTeam']['id']]
+        if len(homeTeam) > 0:
+            homeTeam = homeTeam[0]
+        else:
+            continue
+
+        awayTeam = [x["fullName"] for x in teams if x["id"] == game['awayTeam']['id']]
+        if len(awayTeam) > 0:
+            awayTeam = awayTeam[0]
+        else:
+            continue
 
         predictedWinner = homeTeam if predictedOutcomes[index] == 1 else awayTeam
         outputForDF.append({
@@ -689,6 +724,92 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
         _setPredictions(outputForDF)
 
 
+def _execAnnPlayoffs(model, predictionFile, comparisonFunction, playoffMetadata):
+    """Execute the model using the values used for prediction.
+
+    :param model: Model loaded using tensorflow.
+    :param predictionFile: Filepath containing the data used for predicting the outcomes of the
+    games played on (day/month/year). This is typically the data generated using `generate` from
+    the current season. 
+    :param comparisonFuncion: Type of function used to compare records.
+    :param playoffMetadata: Group of games consisting of the team that will play the best of 7 
+    game series.
+    """
+    if not exists(FEATURE_FILE):
+        logger.critical(f"failed to find features file {FEATURE_FILE}")
+        return
+
+    features = []
+    with open(FEATURE_FILE, 'rb') as jsonFile:
+        jsonData = loads(jsonFile.read())
+
+        features = jsonData.get("features", [])
+
+    if not features:
+        logger.critical("failed to access features")
+        return
+
+    """
+    GOAL:
+
+    JSON
+
+    {
+        letter: {
+            "higherSeed": triCode
+            "lowerSeed": triCode
+            "predictedWinner": triCode
+            "numGamesToWin": number
+            "outcomes": [
+                "1": triCode
+                "2": ...
+            ]
+        }
+
+    }
+    """
+    playoffData = {}
+
+    for letter in playoffMetadata:
+        preparedDF = prepareDataForPredictions(
+            predictFile=predictionFile,
+            comparisonFunction=comparisonFunction,
+            gameData=playoffMetadata[letter]
+        )
+
+        if preparedDF is None:
+            logger.error("failed to prepare data for predictions")
+            return
+
+        # ensure that only the selected feature found above are present in the dataframe
+        preparedDF = preparedDF[features]
+
+        predicted = model.predict(preparedDF)
+        predictedOutcomes = [int(round(x[0], 2)) for x in predicted]
+
+        # The key is the triCode for the team. When one team has a 
+        # value of 4 then the series is over and a winner is predicted.
+        wins = {}
+
+        for index, game in enumerate(playoffMetadata[letter]["games"]):
+            homeTeam = game["homeTeam"]["triCode"]
+            awayTeam = game["awayTeam"]["triCode"]
+            if homeTeam not in wins:
+                wins[homeTeam] = 0
+            if awayTeam not in wins:
+                wins[awayTeam] = 0
+
+            predictedWinner = homeTeam if predictedOutcomes[index] == 1 else awayTeam
+            wins[predictedWinner] += 1
+
+            if max(wins.values()) == 4:
+                # otherTeam = awayTeam if homeTeam == predictedWinner else homeTeam
+
+                playoffData[letter] = wins
+                break
+
+    return playoffData
+
 def _createArtifactDir():
     '''Create the directory that will contain all artifacts. 
     Note: if the base directory(ies) of `BASE_SAVE_DIR` do not exist, then this
@@ -700,7 +821,7 @@ def _createArtifactDir():
         mkdir(BASE_SAVE_DIR)
 
 
-def execAnn(override=False):
+def execAnn(override=False, playoffData=None):
     '''main execution point for the artificial neural network.'''
     _createArtifactDir()
 
@@ -722,18 +843,25 @@ def execAnn(override=False):
         logger.error("valid model not found")
         return
 
-    todaysDate = datetime.now()
-
     compareFunc = [x for x in CompareFunction if x.name == outputs[_COMPARE_FUNC_KEY]][0]
 
-    _execAnnCommon(
-        model,
-        outputs[_PREDICTION_FILE_KEY],
-        compareFunc,
-        todaysDate.day,
-        todaysDate.month,
-        todaysDate.year
-    )
+    if playoffData is None:
+        todaysDate = datetime.now()
+        _execAnnCommon(
+            model,
+            outputs[_PREDICTION_FILE_KEY],
+            compareFunc,
+            todaysDate.day,
+            todaysDate.month,
+            todaysDate.year
+        )
+    else:
+        return _execAnnPlayoffs(
+            model, 
+            outputs[_PREDICTION_FILE_KEY],
+            compareFunc,
+            playoffData
+        )
 
 
 def execAnnSpecificDate(day, month, year):
