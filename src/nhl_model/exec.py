@@ -3,11 +3,18 @@ from datetime import datetime
 from logging import getLogger, basicConfig
 from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate, determineWinners
 from nhl_model.dataset import generateDataset
-from nhl_model.playoffs import getPlayoffMetadata
+from nhl_model.playoffs import (
+    getPlayoffMetadata, 
+    prepareResultsForNextRound, 
+    getTeamInfo, 
+    printPlayoffSeries
+)
 from nhl_model.poisson import execPoisson
 
-from json import dumps
+from nhl_model.standings import getStandings
 
+
+from json import dumps
 
 def main():
     '''main execution point.'''
@@ -87,7 +94,7 @@ def main():
         'playoffs', help='Predict the series winner(s) for NHL playoffs.'
     )
     playoffSubParser.add_argument(
-        '-r', '--round', choices=[1, 2, 3, 4], default=1, type=int, 
+        '-r', '--round', choices=[0, 1, 2, 3, 4], default=0, type=int, 
         help='Round of the playoffs to predict.'
     )
     playoffSubParser.add_argument(
@@ -115,13 +122,27 @@ def main():
     elif args.execType == 'date':
         execAnnSpecificDate(args.day, args.month, args.year)
     elif args.execType == 'playoffs':
-        metadata = getPlayoffMetadata(args.year, args.round)
+        # When 0 is selected we will perform our best guess for each round, but only
+        # use the first round metadata. We will attempt to pick our winners for each
+        # round.
+        predictionRound = args.round if args.round > 0 else 1
+        metadata = getPlayoffMetadata(args.year, predictionRound)
         output = execAnn(override=False, playoffData=metadata)
-        for letter in output:
-            winner = max(output[letter], key=output[letter].get)
-            loser = min(output[letter], key=output[letter].get)
-            print(f"Predicting {winner} defeats {loser} {output[letter][winner]} - "
-                f"{output[letter][loser]} in series {args.round}.{letter}")
+        printPlayoffSeries(output, predictionRound)
+
+        if args.round == 0:
+            standings = getStandings()
+            if not standings:
+                return
+
+            teamData = getTeamInfo()
+            if teamData is None:
+                return
+
+            for r in range(2, 5, 1):
+                matchups = prepareResultsForNextRound(teamData, standings, output, r)
+                output = execAnn(override=False, playoffData=matchups)
+                printPlayoffSeries(output, r)
 
 
 if __name__ == '__main__':

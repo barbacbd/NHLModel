@@ -49,9 +49,6 @@ def createPlayoffMatchup(teamData, higherSeed, lowerSeed):
 def parsePlayoffMetadata(jsonData):
     '''Parse the top and bottom seed out of the playoff metadata.
     '''
-    #print(dumps(jsonData, indent=2))
-    #exit(1)
-    
     if "teams" in jsonData:
         # It is also possible to use the
         # jsonData["teams"]["topSeed"]["commonName"]["default"]
@@ -117,3 +114,58 @@ def getTeamInfo():
         return None
 
     return jsonRequest
+
+
+def determineSeeds(standings, teamOneTriCode, teamTwoTriCode):
+    '''Determine the high/low seed from the standings.
+
+    When the teams have the same standings (in the event of the finals), 
+    then None, None should be returned. This indicates that both are the same.
+    '''
+    teamOneStandingLeague = -1
+    teamTwoStandingLeague = -1
+
+    for conf in standings:
+        if teamOneTriCode in standings[conf]:
+            teamOneStandingLeague = standings[conf][teamOneTriCode]["league"]
+        if teamTwoTriCode in standings[conf]:
+            teamTwoStandingLeague = standings[conf][teamTwoTriCode]["league"]
+
+    if teamOneStandingLeague < teamTwoStandingLeague:
+        return teamOneTriCode, teamTwoTriCode
+    return teamTwoTriCode, teamOneTriCode
+
+
+def prepareResultsForNextRound(teamData, standings, previousRoundResults, currentRound):
+    '''Prepare the results from the previous round for the current round of the 
+    playoffs. The intention is to attempt to predict the winner of the stanley cup.
+    '''
+    previousRound = currentRound - 1
+
+    previousMatchups = 2**(MAX_PLAYOFF_ROUNDS-previousRound)
+    asciiValueStart = 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, previousRound)])
+    asciiValueEnd = asciiValueStart + previousMatchups
+
+    winners = {}
+    for letter in previousRoundResults:
+        winners[letter] = max(previousRoundResults[letter], key=previousRoundResults[letter].get)
+
+    matchups = {}
+    asciiLetterValue = 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, currentRound)])
+    for x in range(asciiValueStart, asciiValueEnd, 2):
+        # print(f"{winners[str(chr(x))]} vs {winners[str(chr(x+1))]}")
+
+        higherSeed, lowerSeed = determineSeeds(standings, winners[str(chr(x))], winners[str(chr(x+1))])
+        matchups[str(chr(asciiLetterValue))] = createPlayoffMatchup(teamData, higherSeed, lowerSeed)
+        asciiLetterValue += 1
+
+    return matchups
+
+
+def printPlayoffSeries(output, predictionRound):
+    print(f"\nPredictions for NHL Playoff Round {predictionRound}\n")
+    for letter in output:
+        winner = max(output[letter], key=output[letter].get)
+        loser = min(output[letter], key=output[letter].get)
+        print(f"Predicting {winner} defeats {loser} {output[letter][winner]} - "
+            f"{output[letter][loser]} in series {predictionRound}.{letter}")

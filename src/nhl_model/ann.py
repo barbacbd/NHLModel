@@ -749,25 +749,6 @@ def _execAnnPlayoffs(model, predictionFile, comparisonFunction, playoffMetadata)
         logger.critical("failed to access features")
         return
 
-    """
-    GOAL:
-
-    JSON
-
-    {
-        letter: {
-            "higherSeed": triCode
-            "lowerSeed": triCode
-            "predictedWinner": triCode
-            "numGamesToWin": number
-            "outcomes": [
-                "1": triCode
-                "2": ...
-            ]
-        }
-
-    }
-    """
     playoffData = {}
 
     for letter in playoffMetadata:
