@@ -167,6 +167,77 @@ The following shows the data after analyzing the games from 10/14/2023:
 | -------- | -------- | -------- | ------------- | --------------- | ------- | ------ |
 | Ottawa Senators | Philadelphia Flyers |	2023-10-14 | 2024-07-19 |	Ottawa Senators | TRUE | Senators |
 
+### Predicting Playoff Games
+
+When the user selects the `playoffs` option for the `execType`, the playoff round(s) will be predicted. The user has the option of entering a value of 
+0, 1, 2, 3, 4 for the round. Rounds 1-4 are the first round through the Stanley Cup Finals. When a value of 0 is entered the entire playoffs are predicted. 
+
+#### Playoff Specific Round
+
+The following example predicts the first round of the playoffs from the 2024-2025 season:
+
+```
+nhl-predict playoffs -r 1 -y 2025
+```
+
+The results are:
+
+```
+Predictions for NHL Playoff Round 1
+
+Predicting TOR defeats OTT 4 - 0 in series 1.a
+Predicting TBL defeats FLA 4 - 3 in series 1.b
+Predicting WSH defeats MTL 4 - 0 in series 1.c
+Predicting CAR defeats NJD 4 - 0 in series 1.d
+Predicting WPG defeats STL 4 - 3 in series 1.e
+Predicting DAL defeats COL 4 - 3 in series 1.f
+Predicting VGK defeats MIN 4 - 3 in series 1.g
+Predicting EDM defeats LAK 4 - 0 in series 1.h
+```
+
+The first round of the playoffs features 8 games/matchups. This example was run after the playoffs, so we can actually confirm the values. The true results indicate that 7 of the 8 were correctly predicted. 
+
+#### Full Playoff Prediction
+
+The following example predicts the full playoff slate for the 2022-2023 season:
+
+```
+nhl-predict playoffs -r 0 -y 2023
+```
+
+The results are:
+
+```
+Predictions for NHL Playoff Round 1
+
+Predicting FLA defeats BOS 4 - 0 in series 1.a
+Predicting TOR defeats TBL 4 - 3 in series 1.b
+Predicting CAR defeats NYI 4 - 0 in series 1.c
+Predicting NYR defeats NJD 4 - 3 in series 1.d
+Predicting COL defeats SEA 4 - 0 in series 1.e
+Predicting DAL defeats MIN 4 - 0 in series 1.f
+Predicting VGK defeats WPG 4 - 3 in series 1.g
+Predicting EDM defeats LAK 4 - 0 in series 1.h
+
+Predictions for NHL Playoff Round 2
+
+Predicting TOR defeats FLA 4 - 3 in series 2.i
+Predicting NYR defeats CAR 4 - 3 in series 2.j
+Predicting DAL defeats COL 4 - 3 in series 2.k
+Predicting VGK defeats EDM 4 - 3 in series 2.l
+
+Predictions for NHL Playoff Round 3
+
+Predicting TOR defeats NYR 4 - 0 in series 3.m
+Predicting VGK defeats DAL 4 - 3 in series 3.n
+
+Predictions for NHL Playoff Round 4
+
+Predicting TOR defeats VGK 4 - 0 in series 4.o
+```
+
+This example was run after the playoffs, so we can actually confirm the values. The true results indicate that 6 of the 8 were correctly predicted for the first round of the playoffs. The true results indicate that 2 of the 4 were correctly predicted for the second round of the playoffs. The true results indicate that 1 of 2 were correctly predicted for the third round of the playoffs. The stanley cup winner was NOT correctly predicted. While the model did not predict the overall winner we were able to predict quite a few of the games. The playoffs are difficult to predict, because experience, injury luck, and other features attribute to wins. 
+
 ## NHL Score Prediction - Poisson Distribution
 
 Poisson distributions fall under the category of discrete probability distributions. The outcome of the Poisson distribution is the number of times that an event occurs. Poisson distributions can be utilized to predict the number of events occurring within a given time interval.

@@ -28,7 +28,7 @@ def getStandings():
                     team["teamAbbrev"]["default"]] = \
                         {"conf": team["conferenceSequence"], "league": team["leagueSequence"]}
 
-            average = mean([len(standings[x]) for x in standings.items()])
+            average = mean([len(standings[x]) for x in standings.keys()])
             if average == 8:
                 break
 
