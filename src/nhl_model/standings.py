@@ -28,7 +28,7 @@ def getStandings():
                     team["teamAbbrev"]["default"]] = \
                         {"conf": team["conferenceSequence"], "league": team["leagueSequence"]}
 
-            average = mean([len(standings[x]) for x in standings.keys()])
+            average = mean([len(standings[x]) for x in standings])  #pylint: disable=C0206
             if average == 8:
                 break
 
