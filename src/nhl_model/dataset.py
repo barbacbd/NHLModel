@@ -536,13 +536,13 @@ def pullPlayoffDataNewAPI(year):
         third digit specifies the match-up
         fourth digit specifies the game (out of 7)
     """
-    playoff_game_data = {}
-    for round in range(1, MAX_PLAYOFF_ROUNDS+1):
-        matchups = 2**(MAX_PLAYOFF_ROUNDS-round)
+    playoffGameData = {}
+    for rnd in range(1, MAX_PLAYOFF_ROUNDS+1):
+        matchups = 2**(MAX_PLAYOFF_ROUNDS-rnd)
         for matchup in range(1, matchups+1):
-           for game in range(1, MAX_PLAYOFF_GAMES_PER_SEQUENCE+1):
+            for game in range(1, MAX_PLAYOFF_GAMES_PER_SEQUENCE+1):
 
-                gameid = "0{}{}{}".format(round, matchup, game)
+                gameid = "0{}{}{}".format(rnd, matchup, game)
 
                 try:
                     # playoff games are always a value of 03 or 3
@@ -550,11 +550,12 @@ def pullPlayoffDataNewAPI(year):
                     logger.debug(f"Looking for platyoff endpoint {endpointPath}")
                     jsonRequest = get(endpointPath).json()
 
-                    playoff_game_data[gameid] = jsonRequest
+                    playoffGameData[gameid] = jsonRequest
                 except:
                     # assuming that the endpoint could not be reached so don't continue processing
                     logger.debug("No playoff data received from request.")
 
+    return playoffGameData
 
 def pullDatasetNewAPI(year):
     """Pull all of the regular season data using the new API. Save this data to a file.
@@ -652,7 +653,7 @@ def pullDatasetNewAPI(year):
     return currYearFilename
 
 
-def generateDataset(version, startYear, endYear, validFiles=[], drop_score_data=False):
+def generateDataset(version, startYear, endYear, validFiles=[], dropScoreData=False):
     """Generate the Dataset that will be used as input to the neural net. This
     ultimately becomes the training data for the model. 
     """
@@ -716,7 +717,7 @@ def generateDataset(version, startYear, endYear, validFiles=[], drop_score_data=
 
     # generate the dataframe and add to a spreadsheet
     df = pd.DataFrame(totalData)
-    if drop_score_data:
+    if dropScoreData:
         logger.debug("Dropping score data from the dataset")
         df = df.drop(columns=['winner'], errors='ignore')
 

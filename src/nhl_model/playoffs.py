@@ -1,14 +1,16 @@
-from json import dumps
 from logging import getLogger
 from requests import get
 from nhl_model.dataset import (
-    pullPlayoffDataNewAPI, 
-    MAX_PLAYOFF_GAMES_PER_SEQUENCE, 
+    MAX_PLAYOFF_GAMES_PER_SEQUENCE,
     MAX_PLAYOFF_ROUNDS
 )
 
 
 logger = getLogger("nhl_neural_net")
+
+
+# pylint: disable=R1728
+asciiLetter = lambda r: 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, r)])
 
 
 def createPlayoffMatchup(teamData, higherSeed, lowerSeed):
@@ -29,7 +31,7 @@ def createPlayoffMatchup(teamData, higherSeed, lowerSeed):
 
     if None in (higherSeedComplete, lowerSeedComplete):
         return
-    
+
     games = []
     for x in range(MAX_PLAYOFF_GAMES_PER_SEQUENCE):
         if x in [0,1,4,6]:
@@ -66,13 +68,13 @@ def getPlayoffMetadata(year, currentRound=1):
         return
 
     matchups = 2**(MAX_PLAYOFF_ROUNDS-currentRound)
-    
-    asciiValueStart = 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, currentRound)])
+
+    asciiValueStart = asciiLetter(currentRound)
     # The metadata for nhl playoff data is accessible via the letter for the matchup.
     # Based on the round of the playoffs we can find the letters expected. For instance
     # round 2 has 4 games, the first round has 8 games. Round 1 consists of letters
     # 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', so the letters for this round start at 'i'.
-    letters = [chr(asciiValueStart + x) for x in range(0, matchups)] 
+    letters = [chr(asciiValueStart + x) for x in range(0, matchups)]
 
     matchupData = {}
 
@@ -95,7 +97,7 @@ def getPlayoffMetadata(year, currentRound=1):
         except:
             # assuming that the endpoint could not be reached so don't continue processing
             logger.error(f"No playoff data received for round {currentRound} of {year} - matchup {letter}.")
-        
+
     return matchupData
 
 
@@ -106,7 +108,7 @@ def getTeamInfo():
     '''
     endpoint = "https://api.nhle.com/stats/rest/en/team"
     jsonRequest = None
-    
+
     try:
         jsonRequest = get(endpoint).json()
     except:
@@ -143,7 +145,7 @@ def prepareResultsForNextRound(teamData, standings, previousRoundResults, curren
     previousRound = currentRound - 1
 
     previousMatchups = 2**(MAX_PLAYOFF_ROUNDS-previousRound)
-    asciiValueStart = 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, previousRound)])
+    asciiValueStart = asciiLetter(previousRound)
     asciiValueEnd = asciiValueStart + previousMatchups
 
     winners = {}
@@ -151,7 +153,7 @@ def prepareResultsForNextRound(teamData, standings, previousRoundResults, curren
         winners[letter] = max(previousRoundResults[letter], key=previousRoundResults[letter].get)
 
     matchups = {}
-    asciiLetterValue = 97 + sum([2**(MAX_PLAYOFF_ROUNDS-x) for x in range(1, currentRound)])
+    asciiLetterValue = asciiLetter(currentRound)
     for x in range(asciiValueStart, asciiValueEnd, 2):
         # print(f"{winners[str(chr(x))]} vs {winners[str(chr(x+1))]}")
 
@@ -163,6 +165,7 @@ def prepareResultsForNextRound(teamData, standings, previousRoundResults, curren
 
 
 def printPlayoffSeries(output, predictionRound):
+    '''Simple printout of the playoff round prediction.'''
     print(f"\nPredictions for NHL Playoff Round {predictionRound}\n")
     for letter in output:
         winner = max(output[letter], key=output[letter].get)

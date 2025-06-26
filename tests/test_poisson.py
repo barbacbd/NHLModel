@@ -114,7 +114,7 @@ class PoissonTests(TestCase):
                 self.assertTrue(id in scores)
                 for key, value in scores[id].items():
                     with self.subTest(
-                        f"Ensuring {id} is not None values", 
+                        f"Ensuring {id} is not None values",
                         key=key,
                         value=value
                     ):
@@ -135,7 +135,7 @@ class PoissonTests(TestCase):
                 self.assertTrue(id in scores)
                 for key, value in scores[id].items():
                     with self.subTest(
-                        f"Ensuring {id} is not None values", 
+                        f"Ensuring {id} is not None values",
                         key=key,
                         value=value
                     ):
@@ -155,7 +155,7 @@ class PoissonTests(TestCase):
                 self.assertTrue(id in scores)
                 for key, value in scores[id].items():
                     with self.subTest(
-                        f"Ensuring {id} is all None values", 
+                        f"Ensuring {id} is all None values",
                         key=key,
                         value=value
                     ):
@@ -183,7 +183,7 @@ class PoissonTests(TestCase):
                 self.assertTrue(id in scores)
                 for key, value in scores[id].items():
                     with self.subTest(
-                        f"Ensuring {id} is not None values", 
+                        f"Ensuring {id} is not None values",
                         key=key,
                         value=value
                     ):
@@ -194,7 +194,7 @@ class PoissonTests(TestCase):
                 self.assertTrue(id in scores)
                 for key, value in scores[id].items():
                     with self.subTest(
-                        f"Ensuring {id} is all None values", 
+                        f"Ensuring {id} is all None values",
                         key=key,
                         value=value
                     ):

@@ -4,17 +4,15 @@ from logging import getLogger, basicConfig
 from nhl_model.ann import execAnn, findFiles, execAnnSpecificDate, determineWinners
 from nhl_model.dataset import generateDataset
 from nhl_model.playoffs import (
-    getPlayoffMetadata, 
-    prepareResultsForNextRound, 
-    getTeamInfo, 
+    getPlayoffMetadata,
+    prepareResultsForNextRound,
+    getTeamInfo,
     printPlayoffSeries
 )
 from nhl_model.poisson import execPoisson
 
 from nhl_model.standings import getStandings
 
-
-from json import dumps
 
 def main():
     '''main execution point.'''
@@ -111,8 +109,8 @@ def main():
     # Follow the imports to see what these functions actually do.
     if args.execType == 'generate':
         validFiles = findFiles(args.version, args.startYear, args.endYear)
-        generateDataset(args.version, args.startYear, args.endYear, 
-            validFiles=validFiles, drop_score_data=args.drop_score_data)
+        generateDataset(args.version, args.startYear, args.endYear,
+            validFiles=validFiles, dropScoreData=args.drop_score_data)
     elif args.execType == 'analyze':
         determineWinners()
     elif args.execType == 'ann':

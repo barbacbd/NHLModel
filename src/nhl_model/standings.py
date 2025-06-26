@@ -1,7 +1,9 @@
-from json import dumps
 from logging import getLogger
-from requests import get
 from statistics import mean
+from requests import get
+
+
+logger = getLogger("nhl_neural_net")
 
 
 def getStandings():
@@ -9,11 +11,11 @@ def getStandings():
     '''
     endpoint = "https://api-web.nhle.com/v1/standings/now"
     jsonRequest = None
-    
+
     try:
         jsonRequest = get(endpoint).json()
     except:
-        logger.error("No team data found")
+        logger.error("No standings data found")
         return None
 
     standings = {"E": {}, "W": {}}
@@ -23,9 +25,10 @@ def getStandings():
             # 8 playoff teams in each conferences
             if int(team["conferenceSequence"]) <= 8:
                 standings[team["conferenceAbbrev"]][
-                    team["teamAbbrev"]["default"]] = {"conf": team["conferenceSequence"], "league": team["leagueSequence"]}
+                    team["teamAbbrev"]["default"]] = \
+                        {"conf": team["conferenceSequence"], "league": team["leagueSequence"]}
 
-            average = mean([len(standings[x]) for x in standings])
+            average = mean([len(standings[x]) for x in standings.items()])
             if average == 8:
                 break
 

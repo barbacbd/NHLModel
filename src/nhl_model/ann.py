@@ -625,6 +625,7 @@ def _setPredictions(todaysData):
     pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
 
 
+#pylint: disable=too-many-positional-arguments
 def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
     """Execute the model using the values used for prediction.
 
@@ -768,7 +769,7 @@ def _execAnnPlayoffs(model, predictionFile, comparisonFunction, playoffMetadata)
         predicted = model.predict(preparedDF)
         predictedOutcomes = [int(round(x[0], 2)) for x in predicted]
 
-        # The key is the triCode for the team. When one team has a 
+        # The key is the triCode for the team. When one team has a
         # value of 4 then the series is over and a winner is predicted.
         wins = {}
 
@@ -838,7 +839,7 @@ def execAnn(override=False, playoffData=None):
         )
     else:
         return _execAnnPlayoffs(
-            model, 
+            model,
             outputs[_PREDICTION_FILE_KEY],
             compareFunc,
             playoffData

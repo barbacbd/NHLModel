@@ -16,8 +16,7 @@ from nhl_model.ann import (
     findTodaysGames,
     _getTeamNames,
     _loadConfig,  # private but testing this anyways
-    prepareDataForPredictions,
-
+    prepareDataForPredictionsByDate,
 )
 from nhl_model.enums import CompareFunction
 
@@ -260,7 +259,7 @@ class ANNClassTests(TestCase):
 
         for compareFunction in compareFunctions:
             with self.subTest(
-                f"Testing prepare predictions {compareFunction.name} for today", 
+                f"Testing prepare predictions {compareFunction.name} for today",
                 compareFunction=compareFunction
             ):
                 preparedDf = prepareDataForPredictionsByDate(
@@ -299,7 +298,7 @@ class ANNClassTests(TestCase):
 
         for compareFunction in compareFunctions:
             with self.subTest(
-                f"Testing prepare predictions {compareFunction.name} for other date", 
+                f"Testing prepare predictions {compareFunction.name} for other date",
                 compareFunction=compareFunction
             ):
                 preparedDf = prepareDataForPredictionsByDate(
