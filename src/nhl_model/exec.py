@@ -56,6 +56,10 @@ def main():
         '--drop_score_data', help='When true, drop the scores and winner information.',
         action='store_true'
     )
+    generateSubParser.add_argument(
+        '--playoffs', help='When true, collect information about the playoffs.',
+        action='store_true'
+    )
 
     # Poisson distribution is used to predict the winner of a specific game based on the
     # number of goals that each team will likely score during the game. This method uses
@@ -108,9 +112,11 @@ def main():
     # execute the correct function from the execTypes dictionary.
     # Follow the imports to see what these functions actually do.
     if args.execType == 'generate':
-        validFiles = findFiles(args.version, args.startYear, args.endYear)
+        validFiles = findFiles(args.version, args.startYear, args.endYear, playoffs=args.playoffs)
         generateDataset(args.version, args.startYear, args.endYear,
-            validFiles=validFiles, dropScoreData=args.drop_score_data)
+            validFiles=validFiles, dropScoreData=args.drop_score_data,
+            playoffs=args.playoffs
+        )
     elif args.execType == 'analyze':
         determineWinners()
     elif args.execType == 'ann':

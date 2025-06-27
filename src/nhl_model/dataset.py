@@ -52,7 +52,7 @@ _staticBoxScoreTeamDataNew = {
     "goals": ["score"],
     "pim": ["pim"],
     "shots": ["sog"],
-    "faceOffWinPercentage": ["faceoffWinningPctg"],
+    "faceOffWinningPercentage": ["faceoffWinningPctg"],
     "blocked": ["blocks"],
     "hits": ["hits"],
 }
@@ -385,14 +385,14 @@ def parseBoxScoreNew(boxscore):
     homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
     awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
 
-    if _verifyExists(boxscore, ["boxscore", "playerByGameStats", "homeTeam"]):
+    if _verifyExists(boxscore, ["playerByGameStats", "homeTeam"]):
         homeTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["boxscore"]["playerByGameStats"]["homeTeam"]
+            boxscore["playerByGameStats"]["homeTeam"]
         ))
 
-    if _verifyExists(boxscore, ["boxscore", "playerByGameStats", "awayTeam"]):
+    if _verifyExists(boxscore, ["playerByGameStats", "awayTeam"]):
         awayTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["boxscore"]["playerByGameStats"]["awayTeam"]
+            boxscore["playerByGameStats"]["awayTeam"]
         ))
 
     ret = {}
@@ -536,24 +536,61 @@ def pullPlayoffDataNewAPI(year):
         third digit specifies the match-up
         fourth digit specifies the game (out of 7)
     """
+    playoffFilename = newAPIFile(f"{year}-NHL-playoffs.json")
+    logger.debug(playoffFilename)
+
+    shortDate = f"{datetime.now().year}-{datetime.now().month}-{datetime.now().day}"
+    jsonGameData = {
+        "metadata": {
+            "date": shortDate,
+            "year": year
+        },
+        "boxScores": {}
+    }
+
     playoffGameData = {}
     for rnd in range(1, MAX_PLAYOFF_ROUNDS+1):
-        matchups = 2**(MAX_PLAYOFF_ROUNDS-rnd)
-        for matchup in range(1, matchups+1):
-            for game in range(1, MAX_PLAYOFF_GAMES_PER_SEQUENCE+1):
+        roundGameData = pullPlayoffDataByRoundNewAPI(year, rnd)
+        playoffGameData.update(roundGameData)
 
-                gameid = "0{}{}{}".format(rnd, matchup, game)
+    jsonGameData["boxScores"] = playoffGameData
 
-                try:
-                    # playoff games are always a value of 03 or 3
-                    endpointPath = _createEndpoint(year, gameid, gameType=3)
-                    logger.debug(f"Looking for platyoff endpoint {endpointPath}")
-                    jsonRequest = get(endpointPath).json()
+    if not exists(BASE_SAVE_DIR):
+        mkdir(BASE_SAVE_DIR)
 
-                    playoffGameData[gameid] = jsonRequest
-                except:
-                    # assuming that the endpoint could not be reached so don't continue processing
-                    logger.debug("No playoff data received from request.")
+    try:
+        with open(playoffFilename, "w") as jsonFile:
+            jsonFile.write(dumps(jsonGameData, indent=2))
+            logger.debug(f"playoff data written to {playoffFilename}")
+    except FileNotFoundError:
+        return None  # error occurred - skip returning the recovery file
+
+    return playoffFilename
+
+
+def pullPlayoffDataByRoundNewAPI(year, rnd):
+    """
+    for playoff games (03), the
+        second digit gives the round of the playoffs
+        third digit specifies the match-up
+        fourth digit specifies the game (out of 7)
+    """
+    playoffGameData = {}
+    matchups = 2**(MAX_PLAYOFF_ROUNDS-rnd)
+    for matchup in range(1, matchups+1):
+        for game in range(1, MAX_PLAYOFF_GAMES_PER_SEQUENCE+1):
+
+            gameid = "0{}{}{}".format(rnd, matchup, game)
+
+            try:
+                # playoff games are always a value of 03 or 3
+                endpointPath = _createEndpoint(year, gameid, gameType=3)
+                logger.debug(f"Looking for platyoff endpoint {endpointPath}")
+                jsonRequest = get(endpointPath).json()
+                playoffGameData[gameid] = jsonRequest
+            except:
+                # assuming that the endpoint could not be reached so don't continue processing
+                logger.debug("No playoff data received from request.")
 
     return playoffGameData
 
@@ -653,7 +690,9 @@ def pullDatasetNewAPI(year):
     return currYearFilename
 
 
-def generateDataset(version, startYear, endYear, validFiles=[], dropScoreData=False):
+def generateDataset(version, startYear, endYear, 
+        validFiles=[], dropScoreData=False, playoffs=False
+):
     """Generate the Dataset that will be used as input to the neural net. This
     ultimately becomes the training data for the model. 
     """
@@ -721,10 +760,65 @@ def generateDataset(version, startYear, endYear, validFiles=[], dropScoreData=Fa
         logger.debug("Dropping score data from the dataset")
         df = df.drop(columns=['winner'], errors='ignore')
 
-    datasetFilename = newAPIFile(f"ANNDataset-{startYear}-{endYear}.xlsx")
+    if playoffs:
+        datasetFilename = newAPIFile(f"Playoffs-{startYear}-{endYear}.xlsx")
+    else:
+        datasetFilename = newAPIFile(f"ANNDataset-{startYear}-{endYear}.xlsx")
 
     logger.debug(df.isna().sum())
 
     if exists(datasetFilename):
         remove(datasetFilename)
     df.to_excel(datasetFilename)
+
+
+
+
+def parseBoxScorePlayoffNew(boxscore):
+    """Parse the box score (new version). This version of the box score should be read
+    from the NHLOpenSeason.json file. The box score will serve as a great starting point
+    for the neural net dataset. The boxscore differs from year to year, but the
+    main data points will be present.
+
+
+    TESTING PURPOSE ONLY - NOT FOR RELEASE
+
+    """
+    def _verifyExists(bs, listOfVars):
+        tmp = bs
+        for var in listOfVars:
+            if var not in tmp:
+                return False
+            tmp = tmp[var]
+        return True
+
+    homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
+    awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
+
+    if _verifyExists(boxscore, ["playerByGameStats", "homeTeam"]):
+        homeTeamData.update(_parseInternalBoxScorePlayersNew(
+            boxscore["playerByGameStats"]["homeTeam"]
+        ))
+
+    if _verifyExists(boxscore, ["playerByGameStats", "awayTeam"]):
+        awayTeamData.update(_parseInternalBoxScorePlayersNew(
+            boxscore["playerByGameStats"]["awayTeam"]
+        ))
+
+    ret = {}
+    for k, v in homeTeamData.items():
+        ret[f"ht{k.capitalize()}"] = v
+    for k, v in awayTeamData.items():
+        ret[f"at{k.capitalize()}"] = v
+
+    if "id" in boxscore:
+        ret.update({
+            "gameId": boxscore["id"], 
+            "winner": bool(ret["htGoals"] > ret["atGoals"])
+        })
+
+    if "gameDate" in boxscore:
+        dateInfo = boxscore["gameDate"].split("-")
+        ret.update({"year": dateInfo[0], "month": dateInfo[1], "day": dateInfo[2]})
+
+    return ret

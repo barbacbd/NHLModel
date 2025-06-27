@@ -13,7 +13,11 @@ import requests
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
-from nhl_model.dataset import pullDatasetNewAPI, BASE_SAVE_DIR
+from nhl_model.dataset import (
+    pullDatasetNewAPI,
+    BASE_SAVE_DIR,
+    pullPlayoffDataNewAPI
+)
 from nhl_model.enums import CompareFunction, Version
 from nhl_model.features import (
     findFeaturesMRMR,
@@ -44,7 +48,7 @@ FeatureSelectionData = {
 }
 
 
-def findFiles(version, startYear, endYear):
+def findFiles(version, startYear, endYear, playoffs=False):
     """Parse the arguements for the program by reading in the static file that
     contains the basic statistics for all teams and all seasons.
     """
@@ -66,7 +70,10 @@ def findFiles(version, startYear, endYear):
                 pass
     else:
         for year in range(startYear, endYear+1):
-            createdFile = pullDatasetNewAPI(year)
+            if playoffs:
+                createdFile = pullPlayoffDataNewAPI(year)
+            else:
+                createdFile = pullDatasetNewAPI(year)
             if createdFile is not None:
                 validFiles.append(createdFile)
 
@@ -410,7 +417,7 @@ def createModel(analysisFile, featureSelection, **kwargs):
     trainDF = pd.read_excel(analysisFile)
 
     # filter out the output/winner and a few categorical columns
-    trainDF, trainOutput = correctData(trainDF, droppable=[])
+    trainDF, trainOutput = correctData(trainDF, droppable=["atGoals", "htGoals", "atTeamid", "htTeamid"])
 
     # use the default values for feature selection (when applicable).
     logger.debug(f"feature selection algorithm: {featureSelection}")
@@ -841,7 +848,8 @@ def execAnn(override=False, playoffData=None):
         return _execAnnPlayoffs(
             model,
             outputs[_PREDICTION_FILE_KEY],
-            compareFunc,
+            # compareFunc,
+            CompareFunction.DIRECT,
             playoffData
         )
 
