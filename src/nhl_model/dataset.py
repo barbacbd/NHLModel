@@ -52,7 +52,7 @@ _staticBoxScoreTeamDataNew = {
     "goals": ["score"],
     "pim": ["pim"],
     "shots": ["sog"],
-    "faceOffWinningPercentage": ["faceoffWinningPctg"],
+    "faceOffWinPercentage": ["faceoffWinningPctg"],
     "blocked": ["blocks"],
     "hits": ["hits"],
 }
@@ -690,7 +690,8 @@ def pullDatasetNewAPI(year):
     return currYearFilename
 
 
-def generateDataset(version, startYear, endYear, 
+#pylint: disable=too-many-positional-arguments
+def generateDataset(version, startYear, endYear,
         validFiles=[], dropScoreData=False, playoffs=False
 ):
     """Generate the Dataset that will be used as input to the neural net. This

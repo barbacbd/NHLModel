@@ -848,8 +848,7 @@ def execAnn(override=False, playoffData=None):
         return _execAnnPlayoffs(
             model,
             outputs[_PREDICTION_FILE_KEY],
-            # compareFunc,
-            CompareFunction.DIRECT,
+            compareFunc,
             playoffData
         )
 
