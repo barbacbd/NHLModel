@@ -284,7 +284,8 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
         "assists": 0,
         "shortHandedGoals": 0,
         "shortHandedAssists": 0,
-        "powerPlayAssists": 0
+        "powerPlayAssists": 0,
+        "shiftsPerPlayer": 0.0,
     }
     goalieDict = {
         "saves": 0,
@@ -302,7 +303,6 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
     }
 
     for playerType, playerValues in teamDict.items():
-
         if playerType in ("forwards", "defense",):
             for playerData in playerValues:
                 spTOI = playerData["toi"].split(":")
@@ -315,6 +315,7 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
                          playerData.get("powerPlayGoals", 0)
                     skaterDict["shortHandedAssists"] += playerData.get("shPoints", 0) - \
                         playerData.get("shorthandedGoals", 0)
+                    skaterDict["shiftsPerPlayer"] += playerData.get("shifts", 0)
 
         elif playerType in ("goalies",):
             for playerData in playerValues:
@@ -364,6 +365,7 @@ def _parseInternalBoxScorePlayersNew(teamDict):  # pylint: disable=too-many-bran
     skaterDict.update(goalieDict)
     skaterDict["numGoalies"] = numGoalies
     skaterDict["numPlayers"] = numPlayers
+    skaterDict["shiftsPerPlayer"] = skaterDict["shiftsPerPlayer"] / numPlayers if numPlayers > 0 else 0.0
 
     return skaterDict
 

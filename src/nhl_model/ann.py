@@ -387,6 +387,10 @@ def correctData(df, droppable=[]):
     output = df["winner"]
 
     labelsToRemove = ["atTeamname", "atTricode", "htTeamname", "htTricode"] + droppable
+    currentLabels = df.columns.tolist()
+    for label in labelsToRemove.copy():
+        if label not in currentLabels:
+            labelsToRemove.remove(label)
 
     # Drop the output from the Dataframe, leaving the only data left as
     # the dataset to train.
@@ -600,7 +604,6 @@ def _setPredictions(todaysData):
     originalDF = _readPredictionsFile()
     if originalDF is None:
         logger.debug("failed to read predictions file, setting current data")
-        print("here")
         pd.DataFrame.from_dict(outputForDF, orient='columns').to_excel(filename)
         return
 
@@ -686,14 +689,10 @@ def _execAnnCommon(model, predictionFile, comparisonFunction, day, month, year):
     todaysGameData = findGamesByDate(day, month, year)
     outputForDF = []
 
-    print(dumps(todaysGameData, indent=2))
-
     for index, game in enumerate(todaysGameData["games"]):
-        print("homeTeam data")
         for x in teams:
             if x['id'] == game['homeTeam']['id']:
                 print(x['fullName'])
-        print("awayTeam data")
         for x in teams:
             if x['id'] == game['awayTeam']['id']:
                 print(x['fullName'])
