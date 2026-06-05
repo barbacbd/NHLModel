@@ -1,3 +1,44 @@
 build/*
 venv*
 src/nhl_model.egg-info
+
+# Python artifacts
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+dist/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.xlsx
+nhl_model
+test/*.xlsx
+test/*.json
+!tests/*.json
+
+# Virtual environments
+.venv/
+ENV/
+env/
