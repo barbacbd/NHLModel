@@ -76,9 +76,14 @@ def parseSchedule(schedule):
     return homeTeamEvents, awayTeamEvents
 
 
-def calculateAvgGoals(events):
-    """Calculate the number of goals home and away. The 
-    returned values are the averages. 
+def calculateAvgGoals(events: dict) -> tuple:
+    """Calculate the average number of goals scored home and away.
+
+    Args:
+        events: Dictionary mapping team IDs to lists of Game objects
+
+    Returns:
+        Tuple of (avg_goals_home, avg_goals_away)
     """
     goalsScoredHome = []
     goalsScoredAway = []
@@ -92,8 +97,10 @@ def calculateAvgGoals(events):
     return avgGoalsScoredHomeTotal, avgGoalsScoredAwayTotal
 
 
-def calculateScores(teamIds, homeTeamEvents, awayTeamEvents):
-    """The following calculations are performed for each team in the
+def calculateScores(teamIds: list, homeTeamEvents: dict, awayTeamEvents: dict) -> dict:
+    """Calculate offensive and defensive strength scores for each team.
+
+    The following calculations are performed for each team in the
     list of team IDs:
     - Home offensive score
     - Home defensive score

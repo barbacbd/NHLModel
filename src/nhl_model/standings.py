@@ -1,9 +1,27 @@
 from logging import getLogger
 from statistics import mean
 from requests import get
+from requests.exceptions import RequestException
+from nhl_model.cache import cached_request
 
 
 logger = getLogger("nhl_neural_net")
+
+
+@cached_request(ttl_seconds=3600)  # 1 hour for standings
+def _get_standings_from_api(url: str):
+    """Cached API call to get standings data.
+
+    Args:
+        url: API endpoint URL
+
+    Returns:
+        JSON response data
+    """
+    response = get(url)
+    if hasattr(response, 'raise_for_status'):
+        response.raise_for_status()
+    return response.json()
 
 
 def getStandings():
@@ -13,9 +31,9 @@ def getStandings():
     jsonRequest = None
 
     try:
-        jsonRequest = get(endpoint).json()
-    except:
-        logger.error("No standings data found")
+        jsonRequest = _get_standings_from_api(endpoint)
+    except (RequestException, ValueError) as e:
+        logger.error(f"No standings data found: {e}")
         return None
 
     standings = {"E": {}, "W": {}}

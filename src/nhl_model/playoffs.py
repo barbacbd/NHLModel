@@ -1,9 +1,27 @@
 from logging import getLogger
 from requests import get
+from requests.exceptions import RequestException
+from nhl_model.cache import cached_request
 from nhl_model.dataset import (
     MAX_PLAYOFF_GAMES_PER_SEQUENCE,
     MAX_PLAYOFF_ROUNDS
 )
+
+
+@cached_request(ttl_seconds=3600)  # 1 hour for team/playoff data
+def _get_from_api(url: str):
+    """Cached API call to get data.
+
+    Args:
+        url: API endpoint URL
+
+    Returns:
+        JSON response data
+    """
+    response = get(url)
+    if hasattr(response, 'raise_for_status'):
+        response.raise_for_status()
+    return response.json()
 
 
 logger = getLogger("nhl_neural_net")
@@ -85,7 +103,7 @@ def getPlayoffMetadata(year, currentRound=1):
     for letter in letters:
         try:
             endpoint = f"https://api-web.nhle.com/v1/meta/playoff-series/{year}/{letter}"
-            jsonRequest = get(endpoint).json()
+            jsonRequest = _get_from_api(endpoint)
             topSeed, bottomSeed = parsePlayoffMetadata(jsonRequest)
             logger.debug(
                 f"{year} playoffs round {currentRound} matchup "
@@ -94,9 +112,9 @@ def getPlayoffMetadata(year, currentRound=1):
 
             if topSeed is not None and bottomSeed is not None:
                 matchupData[str(letter)] = createPlayoffMatchup(teamData, topSeed, bottomSeed)
-        except:
+        except (KeyError, TypeError, ValueError) as e:
             # assuming that the endpoint could not be reached so don't continue processing
-            logger.error(f"No playoff data received for round {currentRound} of {year} - matchup {letter}.")
+            logger.error(f"No playoff data received for round {currentRound} of {year} - matchup {letter}: {e}")
 
     return matchupData
 
@@ -110,9 +128,9 @@ def getTeamInfo():
     jsonRequest = None
 
     try:
-        jsonRequest = get(endpoint).json()
-    except:
-        logger.error("No team data found")
+        jsonRequest = _get_from_api(endpoint)
+    except (RequestException, ValueError) as e:
+        logger.error(f"No team data found: {e}")
         return None
 
     return jsonRequest

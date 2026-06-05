@@ -23,6 +23,7 @@ from nhl_model.features import (
     findFeaturesMRMR,
     findFeaturesF1Scores
 )
+from nhl_model.cache import cached_request
 
 
 # Common Keys used throughout this file
@@ -48,9 +49,17 @@ FeatureSelectionData = {
 }
 
 
-def findFiles(version, startYear, endYear, playoffs=False):
-    """Parse the arguements for the program by reading in the static file that
-    contains the basic statistics for all teams and all seasons.
+def findFiles(version: str, startYear: int, endYear: int, playoffs: bool = False) -> list:
+    """Find and collect NHL data files for the specified year range.
+
+    Args:
+        version: API version to use ('old' or 'new'). 'old' is deprecated.
+        startYear: First year of the season range (e.g., 2020 for 2020-2021 season)
+        endYear: Last year of the season range (inclusive)
+        playoffs: If True, collect playoff data instead of regular season data
+
+    Returns:
+        List of file paths containing NHL game data
     """
     # correct the data
     startYear, endYear = min([startYear, endYear]), max([startYear, endYear])
@@ -66,8 +75,9 @@ def findFiles(version, startYear, endYear, playoffs=False):
             try:
                 if startYear <= int(spDir[len(spDir)-1]) <= endYear:
                     validFiles.extend([path_join(root, f) for f in files])
-            except:
-                pass
+            except (ValueError, IndexError) as e:
+                logger.debug(f"Skipping directory {root}: unable to parse year - {e}")
+                continue
     else:
         for year in range(startYear, endYear+1):
             if playoffs:
@@ -243,6 +253,22 @@ def findTodaysGames():
         todaysDate.year
     )
 
+@cached_request(ttl_seconds=1800)  # 30 minutes for game day data
+def _get_games_from_api(url: str):
+    """Cached API call to get game data.
+
+    Args:
+        url: API endpoint URL
+
+    Returns:
+        JSON response data
+    """
+    response = requests.get(url)
+    if hasattr(response, 'raise_for_status'):
+        response.raise_for_status()
+    return response.json()
+
+
 def findGamesByDate(day, month, year):
     """Query the API to find the games that will be played today.
     """
@@ -250,9 +276,9 @@ def findGamesByDate(day, month, year):
     data = f'https://api-web.nhle.com/v1/score/{searchDate.strftime("%Y-%m-%d")}'
 
     try:
-        todaysGameData = requests.get(data).json()
-    except:
-        logger.error("failed to retrieve NHL data")
+        todaysGameData = _get_games_from_api(data)
+    except (requests.RequestException, ValueError) as e:
+        logger.error(f"Failed to retrieve NHL data: {e}")
         return None
 
     if "games" not in todaysGameData or len(todaysGameData["games"]) == 0:
@@ -344,7 +370,7 @@ def _createHeadToHead(df):
             if firstTeam == secondTeam:
                 continue
 
-            homeFirst = df.loc[(df['htTeamid']==firstTeam) & (df['atTeamid']==secondTeam)]
+            homeFirst = df.loc[(df['htTeamid']==firstTeam) & (df['atTeamid']==secondTeam)].copy()
             homeFirst.dropna(inplace=True)
             if not homeFirst.empty:
                 homeFirst = homeFirst.mean(axis=0).astype(float)
@@ -355,7 +381,7 @@ def _createHeadToHead(df):
                 # squeeze/convert the Dataframe to a Series
                 data.append(_handleAverages(averagesDF, firstTeam, secondTeam).squeeze(axis=0))
 
-            homeSec = df.loc[(df['htTeamid']==secondTeam) & (df['atTeamid']==firstTeam)]
+            homeSec = df.loc[(df['htTeamid']==secondTeam) & (df['atTeamid']==firstTeam)].copy()
             homeSec.dropna(inplace=True)
             if not homeSec.empty:
                 homeSec = homeSec.mean(axis=0).astype(float)
