@@ -33,7 +33,7 @@ Thumbs.db
 
 # Project specific
 *.xlsx
-nhl_model
+/nhl_model
 test/*.xlsx
 test/*.json
 !tests/*.json

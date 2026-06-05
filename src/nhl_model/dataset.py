@@ -1,14 +1,17 @@
 from json import loads, dumps
 from logging import getLogger
-from os import mkdir, remove
+from os import mkdir, remove, getenv
 from os.path import exists, join as path_join
 from warnings import warn
 from datetime import datetime
+from tempfile import gettempdir
 from requests import get
+from requests.exceptions import RequestException
 import pandas as pd
 from nhl_core.endpoints import MAX_GAME_NUMBER
 from nhl_model.enums import Version
 from nhl_model.poisson import parseSeasonEvents
+from nhl_model.cache import cached_request
 
 # Each of the playoff rounds consists of a maximum of 7 games
 MAX_PLAYOFF_GAMES_PER_SEQUENCE = 7
@@ -16,13 +19,44 @@ MAX_PLAYOFF_GAMES_PER_SEQUENCE = 7
 # The number of match ups is round dependent equivalent to 2^((MAX_PLAYOFF_ROUNDS-round))
 MAX_PLAYOFF_ROUNDS = 4
 
-BASE_SAVE_DIR = "/tmp/nhl_model"
+# Base directory for saving model data - configurable via environment variable
+# Defaults to system temp directory for cross-platform compatibility
+BASE_SAVE_DIR = getenv('NHL_MODEL_DIR', path_join(gettempdir(), 'nhl_model'))
 
-newAPIFile = lambda filename: path_join(*([BASE_SAVE_DIR, filename]))
-RecoveryFilename = path_join(*[BASE_SAVE_DIR, "recovery.json"])
+
+def newAPIFile(filename):
+    """Generate the full path for a file in the NHL model directory.
+
+    Args:
+        filename: Name of the file to generate path for
+
+    Returns:
+        Full path to the file in BASE_SAVE_DIR
+    """
+    return path_join(BASE_SAVE_DIR, filename)
+
+
+RecoveryFilename = path_join(BASE_SAVE_DIR, "recovery.json")
 
 
 logger = getLogger("nhl_neural_net")
+
+
+# Cached HTTP GET request - 1 hour TTL by default
+@cached_request(ttl_seconds=3600)
+def _cached_get(url: str):
+    """Cached version of requests.get() to avoid rate limiting.
+
+    Args:
+        url: URL to fetch
+
+    Returns:
+        JSON response data
+    """
+    response = get(url)
+    if hasattr(response, 'raise_for_status'):
+        response.raise_for_status()
+    return response.json()
 
 
 _staticBoxScoreTeamData = {
@@ -58,16 +92,31 @@ _staticBoxScoreTeamDataNew = {
 }
 
 def _parsePPDataNew(powerPlayData):
-    """Parse the power play information from the "new" boxscore data that 
+    """Parse the power play information from the "new" boxscore data that
     can be retrieved from the new API.
+
+    Args:
+        powerPlayData: String in format "goals/opportunities" (e.g., "2/5")
+
+    Returns:
+        Dictionary with powerPlayPercentage, powerPlayGoals, and powerPlayOpportunities
     """
-    spPPD = powerPlayData.split("/")
-    success, opportunities = int(spPPD[0]), int(spPPD[1])
-    return {
-        "powerPlayPercentage": round(eval(powerPlayData) * 100.0, 2) if opportunities > 0 else 0.0,
-        "powerPlayGoals": success,
-        "powerPlayOpportunities": opportunities,
-    }
+    try:
+        spPPD = powerPlayData.split("/")
+        success, opportunities = int(spPPD[0]), int(spPPD[1])
+        percentage = (success / opportunities * 100.0) if opportunities > 0 else 0.0
+        return {
+            "powerPlayPercentage": round(percentage, 2),
+            "powerPlayGoals": success,
+            "powerPlayOpportunities": opportunities,
+        }
+    except (ValueError, AttributeError, IndexError, ZeroDivisionError) as e:
+        logger.error(f"Invalid power play data format: {powerPlayData} - {e}")
+        return {
+            "powerPlayPercentage": 0.0,
+            "powerPlayGoals": 0,
+            "powerPlayOpportunities": 0,
+        }
 
 
 def _parseInternalTeamData(boxScoreValue, dataList):
@@ -387,15 +436,17 @@ def parseBoxScoreNew(boxscore):
     homeTeamData = _parseInternalBoxScoreTeamsNew(boxscore["homeTeam"])
     awayTeamData = _parseInternalBoxScoreTeamsNew(boxscore["awayTeam"])
 
+    # playerByGameStats can be at top level or nested under "boxscore"
+    player_stats_path = None
     if _verifyExists(boxscore, ["playerByGameStats", "homeTeam"]):
-        homeTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["playerByGameStats"]["homeTeam"]
-        ))
+        player_stats_path = boxscore["playerByGameStats"]
+    elif _verifyExists(boxscore, ["boxscore", "playerByGameStats", "homeTeam"]):
+        player_stats_path = boxscore["boxscore"]["playerByGameStats"]
 
-    if _verifyExists(boxscore, ["playerByGameStats", "awayTeam"]):
-        awayTeamData.update(_parseInternalBoxScorePlayersNew(
-            boxscore["playerByGameStats"]["awayTeam"]
-        ))
+    if player_stats_path:
+        homeTeamData.update(_parseInternalBoxScorePlayersNew(player_stats_path["homeTeam"]))
+        if "awayTeam" in player_stats_path:
+            awayTeamData.update(_parseInternalBoxScorePlayersNew(player_stats_path["awayTeam"]))
 
     ret = {}
     for k, v in homeTeamData.items():
@@ -588,16 +639,22 @@ def pullPlayoffDataByRoundNewAPI(year, rnd):
                 # playoff games are always a value of 03 or 3
                 endpointPath = _createEndpoint(year, gameid, gameType=3)
                 logger.debug(f"Looking for platyoff endpoint {endpointPath}")
-                jsonRequest = get(endpointPath).json()
+                jsonRequest = _cached_get(endpointPath)
                 playoffGameData[gameid] = jsonRequest
-            except:
+            except (RequestException, ValueError, KeyError) as e:
                 # assuming that the endpoint could not be reached so don't continue processing
-                logger.debug("No playoff data received from request.")
+                logger.debug(f"No playoff data received from request: {e}")
 
     return playoffGameData
 
-def pullDatasetNewAPI(year):
+def pullDatasetNewAPI(year: int) -> str:
     """Pull all of the regular season data using the new API. Save this data to a file.
+
+    Args:
+        year: The year for the start of the NHL season (e.g., 2023 for 2023-2024 season)
+
+    Returns:
+        Path to the created file, or None if the season hasn't started or data cannot be retrieved
     """
     currentGame = 0
     _year = year
@@ -653,9 +710,9 @@ def pullDatasetNewAPI(year):
             endpointPath = _createEndpoint(_year, currentGame)
             logger.debug(f"Looking for {endpointPath}")
             jsonRequest = get(endpointPath).json()
-        except:
+        except (RequestException, ValueError, KeyError) as e:
             # assuming that the endpoint could not be reached so don't continue processing
-            logger.debug("No data received from request.")
+            logger.debug(f"No data received from request: {e}")
             currentGame -= 1
             jsonGameData["metadata"]["lastRegisteredGame"] = currentGame
             break
