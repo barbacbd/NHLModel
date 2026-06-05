@@ -4,12 +4,20 @@ from sklearn.ensemble import RandomForestClassifier
 
 
 def findFeaturesMRMR(dataset, outputs, K=None, **kwargs):
-    """Select K features using the MRMR feature selection algorithm.
+    """Select K features using the MRMR (Maximum Relevance Minimum Redundancy) algorithm.
 
-    :param dataset: Pandas dataframe. The dataframe should NOT include the output column.
-    :param outputs: Output column from the original dataset
-    :param K: number of features. When None, make a guess at the optimal number of features by 
-    using the mean of the relevance scores to find the features.
+    MRMR selects features that are highly relevant to the target while being minimally
+    redundant with already selected features.
+
+    Args:
+        dataset: Pandas DataFrame containing feature columns (should NOT include output)
+        outputs: Target/output column from the original dataset
+        K: Number of features to select. If None or <= 0, automatically determines K
+           by selecting features with above-average relevance scores
+        **kwargs: Additional arguments (unused, for compatibility)
+
+    Returns:
+        List of selected feature names, or None if invalid K provided
     """
     _k = K
     if _k is None or _k <= 0:
@@ -34,14 +42,20 @@ def findFeaturesMRMR(dataset, outputs, K=None, **kwargs):
 
 
 def findFeaturesF1Scores(dataset, outputs, precision=1.0, **kwargs):
-    """Attempt to find the optimal features used for training 
-    model(s). This is merely an estimation, but the optimal number of features is
-    the least amount of features required to meet a F1 Score of `precision`. 
+    """Find optimal features using Random Forest and F1 scores.
 
-    :param dataset: Pandas dataframe. The dataframe should NOT include the output column.
-    :param outputs: Output column from the original dataset
-    :param precision: Minimum F1 Score used for calculations. When F1 scores are below this
-    value, the optimal number of features has not been achieved.
+    Uses iterative feature elimination with Random Forest classifier to determine
+    the minimum set of features needed to achieve the target F1 score.
+
+    Args:
+        dataset: Pandas DataFrame containing feature columns (should NOT include output)
+        outputs: Target/output column from the original dataset
+        precision: Target F1 score threshold (0.0 to 1.0). The algorithm finds the
+                  minimum number of features needed to achieve this score
+        **kwargs: Additional arguments (unused, for compatibility)
+
+    Returns:
+        List of selected feature names that achieve the target precision
     """
 
     # Create a deep copy so that changes are not reflected to the original

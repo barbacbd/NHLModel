@@ -7,9 +7,25 @@ ShotEvents = [x.value for x in EventType]
 
 
 class Game:
-    '''A Game contains all home and away team events that have occurred during
-    an NHL game.
-    '''
+    """A Game contains all home and away team events that have occurred during an NHL game.
+
+    This class tracks game events, actual scores, and predicted scores/win percentages
+    for both home and away teams.
+
+    Attributes:
+        gameId: Unique identifier for the NHL game
+        homeTeamId: ID of the home team
+        awayTeamId: ID of the away team
+        homeTeamEvents: List of events caused by the home team
+        awayTeamEvents: List of events caused by the away team
+        homeTeamWinPercent: Predicted win percentage for home team (0-100)
+        awayTeamWinPercent: Predicted win percentage for away team (0-100)
+        regulationTiePercent: Predicted probability of regulation tie
+        homeTeamGoalsPrediction: Predicted goals for home team
+        homeTeamGoalsActual: Actual goals scored by home team
+        awayTeamGoalsPrediction: Predicted goals for away team
+        awayTeamGoalsActual: Actual goals scored by away team
+    """
 
     # pylint: disable=too-many-instance-attributes
 
