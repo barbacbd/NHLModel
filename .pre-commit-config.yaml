@@ -1,0 +1,92 @@
+# Pre-commit hooks for NHL Model project
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # General file quality checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+
+      # Check YAML syntax
+      - id: check-yaml
+
+      # Check JSON syntax
+      - id: check-json
+
+      # Check for merge conflicts
+      - id: check-merge-conflict
+
+      # Check for large files (>500KB)
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+      # Prevent committing to main branch directly
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
+
+      # Check Python syntax
+      - id: check-ast
+
+      # Check for debugger imports
+      - id: debug-statements
+
+      # Fix mixed line endings
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--line-length", "100"]
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: ["--line-length", "100"]
+
+  # Python linting (optional - can be slow)
+  # Uncomment if you want automated pylint on commit
+  # - repo: https://github.com/pycqa/pylint
+  #   rev: v3.0.3
+  #   hooks:
+  #     - id: pylint
+  #       args: ["--rcfile=.pylintrc"]
+  #       additional_dependencies: [
+  #         "inquirer",
+  #         "scipy",
+  #         "keras",
+  #         "tensorflow",
+  #         "numpy",
+  #         "pandas",
+  #         "openpyxl",
+  #         "mrmr_selection",
+  #         "nhl-core",
+  #         "requests"
+  #       ]
+
+  # Security checks for Python
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+
+  # Check for common security issues
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.3
+    hooks:
+      - id: python-safety-dependencies-check
