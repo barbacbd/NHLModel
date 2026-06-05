@@ -100,7 +100,7 @@ class PoissonTests(TestCase):
         '''Test parsing the schedule and getting the average number of goals.'''
         homeTeamEvents, _ = parseSchedule(self.jsonSchedule)
         avgGoalsScoredHomeTotal, _ = calculateAvgGoals(homeTeamEvents)
-        self.assertAlmostEquals(avgGoalsScoredHomeTotal, 3.1797, places=4)
+        self.assertAlmostEqual(avgGoalsScoredHomeTotal, 3.1797, places=4)
 
     def test_calculate_scores_single(self):
         '''Test a single entry to calculate scores for. In this case the team
